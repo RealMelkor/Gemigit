@@ -1,0 +1,7 @@
+gemigit:
+  https: true
+  port: 5555
+  name: "Gemigit"
+  domain: "mydomain.com"
+  allowRegistration: true
+  database: "gemigit.db"
