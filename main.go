@@ -72,7 +72,7 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 	return ret, nil
 }
 
-func showRepoFiles(user string, reponame string) (string, error) {
+func showRepoFiles(user string, reponame string, owner bool) (string, error) {
 	files, err := repo.GetFiles(reponame, user)
 	if err != nil {
 		log.Println(err.Error())
@@ -80,7 +80,12 @@ func showRepoFiles(user string, reponame string) (string, error) {
 	ret := "\n## Files\n\n"
 	if files != nil {
 		err = files.ForEach(func(f *object.File) error {
-			ret += "=>/account/repo/" + reponame + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
+			if owner {
+				ret += "=>/account/repo/"
+			} else {
+				ret += "=>/repo/" + user + "/"
+			}
+			ret += reponame + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
 			return nil
 		})
 		if err != nil {
@@ -198,7 +203,7 @@ func main() {
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			out, err := showRepoFiles(username, c.Param("repo"))
+			out, err := showRepoFiles(username, c.Param("repo"), true)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
@@ -351,7 +356,7 @@ func main() {
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			out, err := showRepoFiles(c.Param("user"), c.Param("repo"))
+			out, err := showRepoFiles(c.Param("user"), c.Param("repo"), false)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
