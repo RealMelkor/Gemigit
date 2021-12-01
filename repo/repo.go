@@ -67,6 +67,9 @@ func GetFiles(name string, username string) (*object.FileIter, error) {
 	if err != nil {
 		return nil, err
 	}
+	if tree == nil {
+		return nil, nil
+	}
 	return tree.Files(), nil
 }
 
@@ -74,6 +77,9 @@ func GetFile(name string, username string, file string) (*object.File, error) {
 	tree, err := getTree(name, username)
 	if err != nil {
 		return nil, err
+	}
+	if tree == nil {
+		return nil, nil
 	}
 	out, err := tree.File(file)
 	if err != nil {
