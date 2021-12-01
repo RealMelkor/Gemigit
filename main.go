@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -13,13 +15,43 @@ import (
 	"github.com/pitr/gig"
 )
 
-func main() {
+func getHttpAddress(user string, repo string) string {
+	ret := "git clone "
+	if cfg.Gemigit.Https {
+		ret += "https://"
+	} else {
+		ret += "http://"
+	}
+	ret += cfg.Gemigit.Domain + "/" + user + "/" + repo + "\n"
+	return ret
+}
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+func main() {
 
 	if err := loadConfig(); err != nil {
 		log.Fatalln(err.Error())
 	}
+
+	if len(os.Args) > 1 {
+		if os.Args[1] == "chpasswd" {
+			if len(os.Args) < 4 {
+				fmt.Println(os.Args[0] + " chpasswd <username> <new password>")
+				return
+			}
+			err := db.Init(cfg.Gemigit.Database)
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			defer db.Close()
+			if err := db.ChangePassword(os.Args[2], os.Args[3]); err != nil {
+				fmt.Println(err.Error())
+			}
+			fmt.Println(os.Args[2] + "'s password changed")
+			return
+		}
+	}
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	err := db.Init(cfg.Gemigit.Database)
 	if err != nil {
@@ -53,6 +85,7 @@ func main() {
 			ret += "# Account : " + username + "\n\n"
 			ret += "=>/account/addrepo Create a new repository\n"
 			ret += "=>/account/delrepo Delete a new repository\n"
+			ret += "=>/account/chpasswd Change your password\n"
 			ret += "\n## Repositories list\n\n"
 
 			repos, err := db.GetRepoFromUser(username, false)
@@ -85,13 +118,14 @@ func main() {
 		})
 
 		secure.Handle("/repo/:repo", func(c gig.Context) error {
-			ret := "=>/account/main Go back\n\n"
-			ret += "# " + c.Param("repo") + "\n\n"
-			ret += "=>/account/repo/" + c.Param("repo") + "/togglepublic Make the repository "
 			username, exist := db.GetUsername(c.CertHash())
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
+			ret := "=>/account/main Go back\n\n"
+			ret += "# " + c.Param("repo") + "\n"
+			ret += "> " + getHttpAddress(username, c.Param("repo")) + "\n"
+			ret += "=>/account/repo/" + c.Param("repo") + "/togglepublic Make the repository "
 			b, err := db.IsRepoPublic(c.Param("repo"), username)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
@@ -195,6 +229,26 @@ func main() {
 
 			return c.NoContent(gig.StatusInput, "Repository name")
 		})
+
+		secure.Handle("/chpasswd", func(c gig.Context) error {
+			passwd, err := c.QueryString()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+			}
+			if passwd != "" {
+
+				username, b := db.GetUsername(c.CertHash())
+				if b {
+					err := db.ChangePassword(username, passwd)
+					if err != nil {
+						return c.NoContent(gig.StatusBadRequest, err.Error())
+					}
+					return c.NoContent(gig.StatusRedirectTemporary, "/account/main")
+				}
+				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
+			}
+			return c.NoContent(gig.StatusSensitiveInput, "New password")
+		})
 	}
 
 	public := g.Group("/repo")
@@ -229,13 +283,7 @@ func main() {
 			ret := "=>/repo Go back\n\n"
 			ret += "# " + c.Param("repo") + " by " + c.Param("user") + "\n"
 			ret += "=>/repo/" + c.Param("user") + " View account" + "\n\n"
-			ret += "> git clone "
-			if cfg.Gemigit.Https {
-				ret += "https://"
-			} else {
-				ret += "http://"
-			}
-			ret += cfg.Gemigit.Domain + "/" + c.Param("user") + "/" + c.Param("repo") + "\n"
+			ret += "> " + getHttpAddress(c.Param("user"), c.Param("repo"))
 			public, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())

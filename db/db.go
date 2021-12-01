@@ -446,3 +446,43 @@ func TogglePublic(repo string, username string) error {
 	}
 	return nil
 }
+
+func UserChangePassword(username string, oldpassword string, password string, sig string) error {
+	if err := VerifySignature(username, sig); err != nil {
+		return err
+	}
+	b, err := Login(username, oldpassword, sig)
+	if err != nil {
+		return err
+	}
+	if b {
+		return errors.New("the old password is incorrect")
+	}
+	return ChangePassword(username, password)
+}
+
+func ChangePassword(username string, password string) error {
+	b, err := isPasswordValid(password)
+	if err != nil {
+		return err
+	}
+	if !b {
+		return errors.New("invalid password")
+	}
+	hPassword, err := hashPassword(password)
+	if err != nil {
+		return err
+	}
+	statement, err := db.Exec("UPDATE user SET password=? WHERE UPPER(name) LIKE UPPER(?)", hPassword, username)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return nil
+	}
+	if rows < 1 {
+		return errors.New("no password changed")
+	}
+	return nil
+}
