@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -50,22 +51,25 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		ret += "=>/account/repo/" + reponame + "/files Files\n"
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
-			ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
+			//ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
+			ret += "=>/account/repo/" + reponame + "/license License\n"
 		}
 		file, err = repo.GetFile(reponame, user, "README")
 		if file != nil && err == nil {
-			ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " Readme\n"
+			//ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " Readme\n"
+			ret += "=>/account/repo/" + reponame + "/readme Readme\n"
 		}
 	} else {
 		ret += "\n=>/repo/" + user + "/" + reponame + " Log\n"
 		ret += "=>/repo/" + user + "/" + reponame + "/files Files\n"
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
-			ret += "=>/repo/" + user + "/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
+			ret += "=>/repo/" + user + "/" + reponame + "/license License\n"
+			//ret += "=>/repo/" + user + "/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
 		}
 		file, err = repo.GetFile(reponame, user, "README")
 		if file != nil && err == nil {
-			ret += "=>/repo/" + user + "/" + reponame + "/" + file.Blob.Hash.String() + " Readme\n"
+			ret += "=>/repo/" + user + "/" + reponame + "/readme Readme\n"
 		}
 	}
 
@@ -115,6 +119,42 @@ func showRepoCommits(user string, reponame string) (string, error) {
 	} else {
 		ret += "Empty repository\n"
 	}
+	return ret, nil
+}
+
+func showRepoFile(user string, reponame string, file string) (string, error) {
+	out, err := repo.GetFile(reponame, user, file)
+	if err != nil {
+		return "", err
+	}
+	reader, err := out.Reader()
+	if err != nil {
+		return "", err
+	}
+	buf, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
+
+func showLicense(user string, reponame string) (string, error) {
+	ret := "\n## License\n\n"
+	file, err := showRepoFile(user, reponame, "LICENSE")
+	if err != nil {
+		return "", err
+	}
+	ret += file
+	return ret, nil
+}
+
+func showReadme(user string, reponame string) (string, error) {
+	ret := "\n## Readme\n\n"
+	file, err := showRepoFile(user, reponame, "README")
+	if err != nil {
+		return "", err
+	}
+	ret += file
 	return ret, nil
 }
 
@@ -204,6 +244,40 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
 			out, err := showRepoFiles(username, c.Param("repo"), true)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			ret += out
+			return c.Gemini(ret)
+		})
+
+		secure.Handle("/repo/:repo/license", func(c gig.Context) error {
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			ret, err := showRepoHeader(username, c.Param("repo"), true)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			out, err := showLicense(username, c.Param("repo"))
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			ret += out
+			return c.Gemini(ret)
+		})
+
+		secure.Handle("/repo/:repo/readme", func(c gig.Context) error {
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			ret, err := showRepoHeader(username, c.Param("repo"), true)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			out, err := showReadme(username, c.Param("repo"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
@@ -357,6 +431,30 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
 			out, err := showRepoFiles(c.Param("user"), c.Param("repo"), false)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.Gemini(ret + out)
+		})
+
+		public.Handle("/:user/:repo/license", func(c gig.Context) error {
+			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			out, err := showLicense(c.Param("user"), c.Param("repo"))
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.Gemini(ret + out)
+		})
+
+		public.Handle("/:user/:repo/readme", func(c gig.Context) error {
+			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			out, err := showReadme(c.Param("user"), c.Param("repo"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
