@@ -42,7 +42,7 @@ func GetCommits(name string, username string) (object.CommitIter, error) {
 	return cIter, nil
 }
 
-func GetFiles(name string, username string) (*object.FileIter, error) {
+func getTree(name string, username string) (*object.Tree, error) {
 	repo, err := git.PlainOpen(rootPath + "/" + username + "/" + name)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,27 @@ func GetFiles(name string, username string) (*object.FileIter, error) {
 	if err != nil {
 		return nil, err
 	}
+	return tree, nil
+}
+
+func GetFiles(name string, username string) (*object.FileIter, error) {
+	tree, err := getTree(name, username)
+	if err != nil {
+		return nil, err
+	}
 	return tree.Files(), nil
+}
+
+func GetFile(name string, username string, file string) (*object.File, error) {
+	tree, err := getTree(name, username)
+	if err != nil {
+		return nil, err
+	}
+	out, err := tree.File(file)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func GetPublicFile(name string, username string, hash string) (string, error) {

@@ -26,6 +26,93 @@ func getHttpAddress(user string, repo string) string {
 	return ret
 }
 
+func showRepoHeader(user string, reponame string, owner bool) (string, error) {
+	ret := ""
+	if owner {
+		ret += "=>/account/main Go back\n\n"
+	} else {
+		ret += "=>/repo Go back\n\n"
+	}
+	ret += "# " + reponame + "\n"
+	ret += "> " + getHttpAddress(user, reponame)
+	if owner {
+		ret += "=>/account/repo/" + reponame + "/togglepublic Make the repository "
+		b, err := db.IsRepoPublic(reponame, user)
+		if err != nil {
+			return "", err
+		}
+		if b {
+			ret += "private\n\n"
+		} else {
+			ret += "public\n\n"
+		}
+		ret += "=>/account/repo/" + reponame + " Log\n"
+		ret += "=>/account/repo/" + reponame + "/files Files\n"
+		file, err := repo.GetFile(reponame, user, "LICENSE")
+		if file != nil && err == nil {
+			ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
+		}
+		file, err = repo.GetFile(reponame, user, "README")
+		if file != nil && err == nil {
+			ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " Readme\n"
+		}
+	} else {
+		ret += "\n=>/repo/" + user + "/" + reponame + " Log\n"
+		ret += "=>/repo/" + user + "/" + reponame + "/files Files\n"
+		file, err := repo.GetFile(reponame, user, "LICENSE")
+		if file != nil && err == nil {
+			ret += "=>/repo/" + user + "/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
+		}
+		file, err = repo.GetFile(reponame, user, "README")
+		if file != nil && err == nil {
+			ret += "=>/repo/" + user + "/" + reponame + "/" + file.Blob.Hash.String() + " Readme\n"
+		}
+	}
+
+	return ret, nil
+}
+
+func showRepoFiles(user string, reponame string) (string, error) {
+	files, err := repo.GetFiles(reponame, user)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	ret := "\n## Files\n\n"
+	if files != nil {
+		err = files.ForEach(func(f *object.File) error {
+			ret += "=>/account/repo/" + reponame + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	} else {
+		ret += "Empty repository\n"
+	}
+	return ret, nil
+}
+
+func showRepoCommits(user string, reponame string) (string, error) {
+	commits, err := repo.GetCommits(reponame, user)
+	if err != nil {
+		return "", err
+	}
+	ret := "\n## Commits\n\n"
+	if commits != nil {
+		err = commits.ForEach(func(c *object.Commit) error {
+			ret += "* " + c.Hash.String() + ", by " + c.Author.Name + " on " + c.Author.When.Format("2006-01-02 15:04:05") + "\n"
+			ret += "> " + c.Message + "\n"
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	} else {
+		ret += "Empty repository\n"
+	}
+	return ret, nil
+}
+
 func main() {
 
 	if err := loadConfig(); err != nil {
@@ -45,6 +132,7 @@ func main() {
 			defer db.Close()
 			if err := db.ChangePassword(os.Args[2], os.Args[3]); err != nil {
 				fmt.Println(err.Error())
+				return
 			}
 			fmt.Println(os.Args[2] + "'s password changed")
 			return
@@ -64,6 +152,7 @@ func main() {
 
 	go httpgit.Listen("repos/", cfg.Gemigit.Port)
 
+	gig.DefaultLoggerConfig.Format = "${time_rfc3339} | ${remote_ip} | Path=${path} Status=${status} Latancy=${latency}\n"
 	g := gig.Default()
 	g.Use(gig.Recover())
 
@@ -100,6 +189,23 @@ func main() {
 			return c.Gemini(ret)
 		})
 
+		secure.Handle("/repo/:repo/files", func(c gig.Context) error {
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			ret, err := showRepoHeader(username, c.Param("repo"), true)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			out, err := showRepoFiles(username, c.Param("repo"))
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			ret += out
+			return c.Gemini(ret)
+		})
+
 		secure.Handle("/repo/:repo/:blob", func(c gig.Context) error {
 			username, exist := db.GetUsername(c.CertHash())
 			if !exist {
@@ -122,54 +228,15 @@ func main() {
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
-			ret := "=>/account/main Go back\n\n"
-			ret += "# " + c.Param("repo") + "\n"
-			ret += "> " + getHttpAddress(username, c.Param("repo")) + "\n"
-			ret += "=>/account/repo/" + c.Param("repo") + "/togglepublic Make the repository "
-			b, err := db.IsRepoPublic(c.Param("repo"), username)
+			ret, err := showRepoHeader(username, c.Param("repo"), true)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			if b {
-				ret += "private\n"
-			} else {
-				ret += "public\n"
-			}
-
-			commits, err := repo.GetCommits(c.Param("repo"), username)
+			out, err := showRepoCommits(username, c.Param("repo"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			ret += "\n## Commits\n\n"
-			if commits != nil {
-				err = commits.ForEach(func(c *object.Commit) error {
-					ret += "* " + c.Hash.String() + ", by " + c.Author.Name + " on " + c.Author.When.Format("2006-01-02 15:04:05") + "\n"
-					ret += "> " + c.Message + "\n"
-					return nil
-				})
-				if err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-			} else {
-				ret += "Empty repository\n"
-			}
-			ret += "\n## Files\n\n"
-			files, err := repo.GetFiles(c.Param("repo"), username)
-			if err != nil {
-				log.Println(err.Error())
-			}
-			if files != nil {
-				err = files.ForEach(func(f *object.File) error {
-					ret += "=> " + c.Param("repo") + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
-					return nil
-				})
-				if err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-			} else {
-				ret += "Empty repository\n"
-			}
-
+			ret += out
 			return c.Gemini(ret)
 		})
 
@@ -255,7 +322,7 @@ func main() {
 	{
 		g.Handle("/repo", func(c gig.Context) error {
 			ret := "=>/ Go back\n\n"
-			ret += "# Public repositories\n"
+			ret += "# Public repositories\n\n"
 			repos, err := db.GetPublicRepo()
 			if err != nil {
 				return c.NoContent(gig.StatusTemporaryFailure, "Internal error, "+err.Error())
@@ -279,52 +346,28 @@ func main() {
 			return c.Gemini(ret)
 		})
 
+		public.Handle("/:user/:repo/files", func(c gig.Context) error {
+			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			out, err := showRepoFiles(c.Param("user"), c.Param("repo"))
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.Gemini(ret + out)
+		})
+
 		public.Handle("/:user/:repo", func(c gig.Context) error {
-			ret := "=>/repo Go back\n\n"
-			ret += "# " + c.Param("repo") + " by " + c.Param("user") + "\n"
-			ret += "=>/repo/" + c.Param("user") + " View account" + "\n\n"
-			ret += "> " + getHttpAddress(c.Param("user"), c.Param("repo"))
-			public, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
+			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			if !public {
-				return c.NoContent(gig.StatusBadRequest, "repository not found")
-			}
-			commits, err := repo.GetCommits(c.Param("repo"), c.Param("user"))
+			out, err := showRepoCommits(c.Param("user"), c.Param("repo"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			ret += "\n## Commits\n\n"
-			if commits != nil {
-				err = commits.ForEach(func(c *object.Commit) error {
-					ret += "* " + c.Hash.String() + ", by " + c.Author.Name + " on " + c.Author.When.Format("2006-01-02 15:04:05") + "\n"
-					ret += "> " + c.Message + "\n"
-					return nil
-				})
-				if err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-			} else {
-				ret += "Empty repository\n"
-			}
-			ret += "\n## Files\n\n"
-			files, err := repo.GetFiles(c.Param("repo"), c.Param("user"))
-			if err != nil {
-				log.Println(err.Error())
-			}
-			if files != nil {
-				err = files.ForEach(func(f *object.File) error {
-					ret += "=> " + c.Param("repo") + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
-					return nil
-				})
-				if err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-			} else {
-				ret += "Empty repository\n"
-			}
-			return c.Gemini(ret)
+			return c.Gemini(ret + out)
 		})
 
 		public.Handle("/:user/:repo/:blob", func(c gig.Context) error {
@@ -409,7 +452,8 @@ func main() {
 		_, connected := db.GetUsername(c.CertHash())
 		ret := ""
 		if !connected {
-			ret = "# " + cfg.Gemigit.Name + "\n=> /login Login\n"
+			ret = "# " + cfg.Gemigit.Name + "\n\n"
+			ret += "=> /login Login\n"
 			if cfg.Gemigit.AllowRegistration {
 				ret += "=> /register Register\n"
 			}
