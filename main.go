@@ -35,8 +35,17 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		ret += "=>/repo Go back\n\n"
 	}
 	ret += "# " + reponame + "\n"
-	ret += "> " + getHttpAddress(user, reponame)
+	desc, err := db.GetRepoDesc(reponame, user)
+	if err != nil {
+		return "", err
+	}
+	if desc != "" {
+		ret += "> " + desc + "\n"
+	}
+	ret += "> " + getHttpAddress(user, reponame) + "\n"
 	if owner {
+		ret += "=>/account/repo/" + reponame + "/chname Change repository name\n"
+		ret += "=>/account/repo/" + reponame + "/chdesc Change repository description\n"
 		ret += "=>/account/repo/" + reponame + "/togglepublic Make the repository "
 		b, err := db.IsRepoPublic(reponame, user)
 		if err != nil {
@@ -51,12 +60,10 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		ret += "=>/account/repo/" + reponame + "/files Files\n"
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
-			//ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
 			ret += "=>/account/repo/" + reponame + "/license License\n"
 		}
 		file, err = repo.GetFile(reponame, user, "README")
 		if file != nil && err == nil {
-			//ret += "=>/account/repo/" + reponame + "/" + file.Blob.Hash.String() + " Readme\n"
 			ret += "=>/account/repo/" + reponame + "/readme Readme\n"
 		}
 	} else {
@@ -65,7 +72,6 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
 			ret += "=>/repo/" + user + "/" + reponame + "/license License\n"
-			//ret += "=>/repo/" + user + "/" + reponame + "/" + file.Blob.Hash.String() + " License\n"
 		}
 		file, err = repo.GetFile(reponame, user, "README")
 		if file != nil && err == nil {
@@ -197,7 +203,7 @@ func main() {
 
 	go httpgit.Listen("repos/", cfg.Gemigit.Port)
 
-	gig.DefaultLoggerConfig.Format = "${time_rfc3339} | ${remote_ip} | Path=${path} Status=${status} Latancy=${latency}\n"
+	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | Path=${path}, Status=${status}, Latency=${latency}\n"
 	g := gig.Default()
 	g.Use(gig.Recover())
 
@@ -220,11 +226,13 @@ func main() {
 			ret += "=>/account/addrepo Create a new repository\n"
 			ret += "=>/account/delrepo Delete a new repository\n"
 			ret += "=>/account/chpasswd Change your password\n"
+			ret += "=>/account/disconnect Disconnect\n"
 			ret += "\n## Repositories list\n\n"
 
 			repos, err := db.GetRepoFromUser(username, false)
 			if err != nil {
 				ret += "Failed to load user's repositories\n"
+				log.Println(err)
 			} else {
 				for _, repo := range repos {
 					ret += "=>/account/repo/" + repo.Name + " " + repo.Name + "\n"
@@ -330,6 +338,45 @@ func main() {
 			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
 		})
 
+		secure.Handle("/repo/:repo/chname", func(c gig.Context) error {
+			newname, err := c.QueryString()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+			}
+			if newname == "" {
+				return c.NoContent(gig.StatusInput, "New repository name")
+			}
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			if err := db.ChangeRepoName(c.Param("repo"), username, newname); err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			if err := repo.ChangeRepoDir(c.Param("repo"), username, newname); err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+newname)
+		})
+
+		secure.Handle("/repo/:repo/chdesc", func(c gig.Context) error {
+			newdesc, err := c.QueryString()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+			}
+			if newdesc == "" {
+				return c.NoContent(gig.StatusInput, "New repository description")
+			}
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			if err := db.ChangeRepoDesc(c.Param("repo"), username, newdesc); err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
+		})
+
 		secure.Handle("/repo", func(c gig.Context) error {
 			return c.Gemini("# " + c.Param("name") + "'s user page")
 		})
@@ -395,6 +442,17 @@ func main() {
 			}
 			return c.NoContent(gig.StatusSensitiveInput, "New password")
 		})
+
+		secure.Handle("/disconnect", func(c gig.Context) error {
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			if err := db.Disconnect(username, c.CertHash()); err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary, "/")
+		})
 	}
 
 	public := g.Group("/repo")
@@ -404,10 +462,14 @@ func main() {
 			ret += "# Public repositories\n\n"
 			repos, err := db.GetPublicRepo()
 			if err != nil {
+				log.Println(err.Error())
 				return c.NoContent(gig.StatusTemporaryFailure, "Internal error, "+err.Error())
 			}
 			for _, repo := range repos {
 				ret += "=> /repo/" + repo.Username + "/" + repo.Name + " " + repo.Name + " by " + repo.Username + "\n"
+				if repo.Description != "" {
+					ret += "> " + repo.Description + "\n"
+				}
 			}
 			return c.Gemini(ret)
 		})

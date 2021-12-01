@@ -12,10 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-/*
-type users struct {
-	username
-}*/
 var users = make(map[string]string)
 
 func hashPassword(password string) (string, error) {
@@ -158,6 +154,7 @@ func createTable(db *sql.DB) error {
 		"repoID" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
 		"userID" integer,	
 		"name" TEXT,
+		"description" TEXT,
 		"creation" INTEGER,
 		"public" INTEGER	
 	);`
@@ -271,7 +268,7 @@ func CreateRepo(repo string, username string) error {
 		return errors.New("repo with the same name already exist")
 	}
 
-	statement, err := db.Prepare("insert into repo(userID,name,creation,public) VALUES(?,?,strftime('%s', 'now'),0)")
+	statement, err := db.Prepare("insert into repo(userID,name,creation,public,description) VALUES(?,?,strftime('%s', 'now'),0,\"\")")
 	if err != nil {
 		return err
 	}
@@ -326,16 +323,17 @@ func VerifySignature(username string, sig string) error {
 }
 
 type Repo struct {
-	RepoID   int
-	UserID   int
-	Username string
-	Name     string
-	Date     int
-	IsPublic bool
+	RepoID      int
+	UserID      int
+	Username    string
+	Name        string
+	Date        int
+	IsPublic    bool
+	Description string
 }
 
 func GetRepo(reponame string, username string) (Repo, error) {
-	rows, err := db.Query("SELECT a.repoID, a.userID, a.name, a.creation, a.public FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(a.name) LIKE UPPER(?) AND UPPER(b.name) LIKE UPPER(?)", username, reponame)
+	rows, err := db.Query("SELECT a.repoID, a.userID, a.name, a.creation, a.public, a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(a.name) LIKE UPPER(?) AND UPPER(b.name) LIKE UPPER(?)", reponame, username)
 	if err != nil {
 		return Repo{}, err
 	}
@@ -346,11 +344,12 @@ func GetRepo(reponame string, username string) (Repo, error) {
 		var name string
 		var date int
 		var public bool
-		err = rows.Scan(&ID, &uID, &name, &date, &public)
+		var description string
+		err = rows.Scan(&ID, &uID, &name, &date, &public, &description)
 		if err != nil {
 			return Repo{}, err
 		}
-		return Repo{ID, uID, username, name, date, public}, nil
+		return Repo{ID, uID, username, name, date, public, description}, nil
 	}
 	return Repo{}, errors.New("No repository called " + reponame + " by user " + username)
 }
@@ -359,9 +358,9 @@ func GetRepoFromUser(username string, onlyPublic bool) ([]Repo, error) {
 	var rows *sql.Rows
 	var err error
 	if onlyPublic {
-		rows, err = db.Query("SELECT a.repoID, a.userID, a.name, a.creation, a.public FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(b.name) LIKE UPPER(?) AND a.public=1", username)
+		rows, err = db.Query("SELECT a.repoID, a.userID, a.name, a.creation, a.public, a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(b.name) LIKE UPPER(?) AND a.public=1", username)
 	} else {
-		rows, err = db.Query("SELECT a.repoID, a.userID, a.name, a.creation, a.public FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(b.name) LIKE UPPER(?)", username)
+		rows, err = db.Query("SELECT a.repoID, a.userID, a.name, a.creation, a.public, a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(b.name) LIKE UPPER(?)", username)
 	}
 	if err != nil {
 		return nil, err
@@ -374,17 +373,18 @@ func GetRepoFromUser(username string, onlyPublic bool) ([]Repo, error) {
 		var name string
 		var date int
 		var public bool
-		err = rows.Scan(&ID, &uID, &name, &date, &public)
+		var description string
+		err = rows.Scan(&ID, &uID, &name, &date, &public, &description)
 		if err != nil {
 			return nil, err
 		}
-		repos = append(repos, Repo{ID, uID, username, name, date, public})
+		repos = append(repos, Repo{ID, uID, username, name, date, public, description})
 	}
 	return repos, nil
 }
 
 func GetPublicRepo() ([]Repo, error) {
-	rows, err := db.Query("SELECT b.name, a.repoID, a.userID, a.name, a.creation, a.public FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE a.public=1")
+	rows, err := db.Query("SELECT b.name, a.repoID, a.userID, a.name, a.creation, a.public, a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE a.public=1")
 	if err != nil {
 		return nil, err
 	}
@@ -397,11 +397,12 @@ func GetPublicRepo() ([]Repo, error) {
 		var name string
 		var date int
 		var public bool
-		err = rows.Scan(&username, &ID, &uID, &name, &date, &public)
+		var description string
+		err = rows.Scan(&username, &ID, &uID, &name, &date, &public, &description)
 		if err != nil {
 			return nil, err
 		}
-		repos = append(repos, Repo{ID, uID, username, name, date, public})
+		repos = append(repos, Repo{ID, uID, username, name, date, public, description})
 	}
 	return repos, nil
 }
@@ -479,10 +480,73 @@ func ChangePassword(username string, password string) error {
 	}
 	rows, err := statement.RowsAffected()
 	if err != nil {
-		return nil
+		return err
 	}
 	if rows < 1 {
 		return errors.New("no password changed")
 	}
 	return nil
+}
+
+func Disconnect(username string, signature string) error {
+	if err := VerifySignature(username, signature); err != nil {
+		return err
+	}
+	delete(users, signature)
+	return nil
+}
+
+func ChangeRepoName(name string, username string, newname string) error {
+	id, err := getUserID(username)
+	if err != nil {
+		return err
+	}
+	statement, err := db.Exec("UPDATE repo SET name=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", newname, name, id)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("failed to change the repository name")
+	}
+	return nil
+}
+
+func ChangeRepoDesc(name string, username string, newdesc string) error {
+	id, err := getUserID(username)
+	if err != nil {
+		return err
+	}
+	statement, err := db.Exec("UPDATE repo SET description=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", newdesc, name, id)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("failed to change the repository description")
+	}
+	return nil
+}
+
+func GetRepoDesc(name string, username string) (string, error) {
+	rows, err := db.Query("SELECT a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(a.name) LIKE UPPER(?) AND UPPER(b.name) LIKE UPPER(?)", name, username)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var description string
+		err = rows.Scan(&description)
+		if err != nil {
+			return "", err
+		}
+		return description, nil
+	}
+	return "", errors.New("No repository called " + name + " by user " + username)
 }
