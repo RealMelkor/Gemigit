@@ -12,6 +12,7 @@ import (
 	"gemigit/httpgit"
 	"gemigit/repo"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pitr/gig"
 )
@@ -96,6 +97,7 @@ func showRepoFiles(user string, reponame string, owner bool) (string, error) {
 			} else {
 				ret += "=>/repo/" + user + "/"
 			}
+			//ret += reponame + "/files?" + f.Name + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
 			ret += reponame + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
 			return nil
 		})
@@ -248,6 +250,21 @@ func main() {
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
+            query, err := c.QueryString()
+            if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+            }
+            if query != "" {
+                repofile, err := repo.GetFile(c.Param("repo"), username, query)
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                contents, err := repofile.Contents()
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                return c.Gemini(contents)
+            }
 			ret, err := showRepoHeader(username, c.Param("repo"), true)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
@@ -282,6 +299,26 @@ func main() {
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
+            query, err := c.QueryString()
+            if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+            }
+            if query != "" {
+                repofile, err := repo.GetFile(c.Param("repo"), username, query)
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                reader, err := repofile.Reader()
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                buf, err := io.ReadAll(reader)
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                mtype := mimetype.Detect(buf)
+                return c.Blob(mtype.String(), buf)
+            }
 			ret, err := showRepoHeader(username, c.Param("repo"), true)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
@@ -492,6 +529,22 @@ func main() {
 			return c.Gemini(ret)
 		})
 
+        /*public.Handle("/:user/:repo/files/:file", func(c gig.Context) error {
+            newpath := strings.ReplaceAll(c.Param("file"),"z","/")
+            repofile, err := repo.GetFile(c.Param("repo"), c.Param("user"), newpath)
+            if err != nil {
+            }
+            reader, err := repofile.Reader()
+            if err != nil {
+                return c.NoContent(gig.StatusBadRequest, err.Error())
+            }
+            //buf, err := io.ReadAll(reader)
+            //if err != nil {
+            //    return c.NoContent(gig.StatusBadRequest, err.Error())
+            //}
+            return c.Stream("image/png", reader)
+        })*/
+
 		public.Handle("/:user/:repo/files", func(c gig.Context) error {
 			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
 			if err != nil {
@@ -517,7 +570,27 @@ func main() {
 		})
 
 		public.Handle("/:user/:repo/readme", func(c gig.Context) error {
-			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
+		    query, err := c.QueryString()
+            if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+            }
+            if query != "" {
+                repofile, err := repo.GetFile(c.Param("repo"), c.Param("user"), query)
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                reader, err := repofile.Reader()
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                buf, err := io.ReadAll(reader)
+                if err != nil {
+				    return c.NoContent(gig.StatusBadRequest, err.Error())
+                }
+                mtype := mimetype.Detect(buf)
+                return c.Blob(mtype.String(), buf)
+            }
+            ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
