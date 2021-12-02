@@ -18,8 +18,9 @@ func Init(path string) error {
 	return os.MkdirAll(path, 0700)
 }
 
-func InitRepo(name string, username string) {
-	git.PlainInit(rootPath+"/"+username+"/"+name, true)
+func InitRepo(name string, username string) error {
+    _, err := git.PlainInit(rootPath+"/"+username+"/"+name, true)
+    return err
 }
 
 func RemoveRepo(name string, username string) error {

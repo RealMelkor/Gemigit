@@ -386,13 +386,17 @@ func main() {
 
 			name, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
 			if name != "" {
 				username, b := db.GetUsername(c.CertHash())
 				if b {
-					db.CreateRepo(name, username)
-					repo.InitRepo(name, username)
+                    if err := db.CreateRepo(name, username); err != nil {
+				        return c.NoContent(gig.StatusBadRequest, err.Error())
+                    }
+                    if err := repo.InitRepo(name, username); err != nil {
+				        return c.NoContent(gig.StatusBadRequest, err.Error())
+                    }
 					return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+name)
 				}
 				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
