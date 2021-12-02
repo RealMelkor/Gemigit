@@ -98,7 +98,7 @@ func showRepoFiles(user string, reponame string, owner bool) (string, error) {
 				ret += "=>/repo/" + user + "/"
 			}
 			//ret += reponame + "/files?" + f.Name + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
-			ret += reponame + "/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
+			ret += reponame + "/files/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
 			return nil
 		})
 		if err != nil {
@@ -277,6 +277,23 @@ func main() {
 			return c.Gemini(ret)
 		})
 
+		secure.Handle("/repo/:repo/files/:blob", func(c gig.Context) error {
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			content, err := repo.GetPrivateFile(c.Param("repo"), username, c.Param("blob"), c.CertHash())
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			lines := strings.Split(content, "\n")
+			file := ""
+			for i, line := range lines {
+				file += strconv.Itoa(i) + " \t" + line + "\n"
+			}
+			return c.Gemini(file)
+		})
+
 		secure.Handle("/repo/:repo/license", func(c gig.Context) error {
 			username, exist := db.GetUsername(c.CertHash())
 			if !exist {
@@ -292,27 +309,6 @@ func main() {
 			}
 			ret += out
 			return c.Gemini(ret)
-		})
-
-		secure.Handle("/repo/:repo/readme/*", func(c gig.Context) error {
-			username, exist := db.GetUsername(c.CertHash())
-			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
-			}
-			repofile, err := repo.GetFile(c.Param("repo"), username, c.Param("*"))
-			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
-			}
-			reader, err := repofile.Reader()
-			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
-			}
-			buf, err := io.ReadAll(reader)
-			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
-			}
-			mtype := mimetype.Detect(buf)
-			return c.Blob(mtype.String(), buf)
 		})
 
 		secure.Handle("/repo/:repo/readme", func(c gig.Context) error {
@@ -332,21 +328,25 @@ func main() {
 			return c.Gemini(ret)
 		})
 
-		secure.Handle("/repo/:repo/:blob", func(c gig.Context) error {
+		secure.Handle("/repo/:repo/*", func(c gig.Context) error {
 			username, exist := db.GetUsername(c.CertHash())
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
-			content, err := repo.GetPrivateFile(c.Param("repo"), username, c.Param("blob"), c.CertHash())
+			repofile, err := repo.GetFile(c.Param("repo"), username, c.Param("*"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			lines := strings.Split(content, "\n")
-			file := ""
-			for i, line := range lines {
-				file += strconv.Itoa(i) + " \t" + line + "\n"
+			reader, err := repofile.Reader()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			return c.Gemini(file)
+			buf, err := io.ReadAll(reader)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			mtype := mimetype.Detect(buf)
+			return c.Blob(mtype.String(), buf)
 		})
 
 		secure.Handle("/repo/:repo", func(c gig.Context) error {
@@ -542,6 +542,19 @@ func main() {
 			return c.Gemini(ret + out)
 		})
 
+		public.Handle("/:user/:repo/files/:blob", func(c gig.Context) error {
+			content, err := repo.GetPublicFile(c.Param("repo"), c.Param("user"), c.Param("blob"))
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			lines := strings.Split(content, "\n")
+			file := ""
+			for i, line := range lines {
+				file += strconv.Itoa(i) + " \t" + line + "\n"
+			}
+			return c.Gemini(file)
+		})
+
 		public.Handle("/:user/:repo/license", func(c gig.Context) error {
 			ret, err := showRepoHeader(c.Param("user"), c.Param("repo"), false)
 			if err != nil {
@@ -552,23 +565,6 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
 			return c.Gemini(ret + out)
-		})
-
-		public.Handle("/:user/:repo/readme/*", func(c gig.Context) error {
-			repofile, err := repo.GetFile(c.Param("repo"), c.Param("user"), c.Param("*"))
-			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
-			}
-			reader, err := repofile.Reader()
-			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
-			}
-			buf, err := io.ReadAll(reader)
-			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
-			}
-			mtype := mimetype.Detect(buf)
-			return c.Blob(mtype.String(), buf)
 		})
 
 		public.Handle("/:user/:repo/readme", func(c gig.Context) error {
@@ -595,17 +591,22 @@ func main() {
 			return c.Gemini(ret + out)
 		})
 
-		public.Handle("/:user/:repo/:blob", func(c gig.Context) error {
-			content, err := repo.GetPublicFile(c.Param("repo"), c.Param("user"), c.Param("blob"))
+		public.Handle("/:user/:repo/*", func(c gig.Context) error {
+			repofile, err := repo.GetFile(c.Param("repo"), c.Param("user"), c.Param("*"))
+			log.Println(c.Param("*"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			lines := strings.Split(content, "\n")
-			file := ""
-			for i, line := range lines {
-				file += strconv.Itoa(i) + " \t" + line + "\n"
+			reader, err := repofile.Reader()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			return c.Gemini(file)
+			buf, err := io.ReadAll(reader)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			mtype := mimetype.Detect(buf)
+			return c.Blob(mtype.String(), buf)
 		})
 	}
 
