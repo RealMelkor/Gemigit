@@ -147,6 +147,7 @@ func createTable(db *sql.DB) error {
 		"userID" integer NOT NULL PRIMARY KEY AUTOINCREMENT,		
 		"name" TEXT,
 		"password" TEXT,
+		"description" TEXT,
 		"creation" INTEGER		
 	  );`
 
@@ -488,6 +489,21 @@ func ChangePassword(username string, password string) error {
 	return nil
 }
 
+func ChangeDescription(username string, description string) error {
+	statement, err := db.Exec("UPDATE user SET description=? WHERE UPPER(name) LIKE UPPER(?)", description, username)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("no description changed")
+	}
+	return nil
+}
+
 func Disconnect(username string, signature string) error {
 	if err := VerifySignature(username, signature); err != nil {
 		return err
@@ -549,4 +565,21 @@ func GetRepoDesc(name string, username string) (string, error) {
 		return description, nil
 	}
 	return "", errors.New("No repository called " + name + " by user " + username)
+}
+
+func GetUserDesc(username string) (string, error) {
+	rows, err := db.Query("SELECT description FROM user WHERE UPPER(name) LIKE UPPER(?)", username)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var description string
+		err = rows.Scan(&description)
+		if err != nil {
+			return "", err
+		}
+		return description, nil
+	}
+	return "", errors.New("No user called " + username)
 }

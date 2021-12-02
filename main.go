@@ -31,11 +31,16 @@ func getHttpAddress(user string, repo string) string {
 func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 	ret := ""
 	if owner {
-		ret += "=>/account/main Go back\n\n"
+		ret += "=>/account Go back\n\n"
 	} else {
 		ret += "=>/repo Go back\n\n"
 	}
-	ret += "# " + reponame + "\n"
+	ret += "# " + reponame
+	if !owner {
+		ret += "by " + user + "\n=>/repo/" + user + " View account\n"
+	} else {
+		ret += "\n"
+	}
 	desc, err := db.GetRepoDesc(reponame, user)
 	if err != nil {
 		return "", err
@@ -219,15 +224,25 @@ func main() {
 	}))
 	{
 
-		secure.Handle("/main", func(c gig.Context) error {
+		secure.Handle("", func(c gig.Context) error {
 			username, exist := db.GetUsername(c.CertHash())
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
 			ret := "=>/ Main page\n\n"
-			ret += "# Account : " + username + "\n\n"
+			ret += "# Account : " + username + "\n"
+			desc, err := db.GetUserDesc(username)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			if desc != "" {
+				ret += desc + "\n\n"
+			} else {
+				ret += "\n"
+			}
 			ret += "=>/account/addrepo Create a new repository\n"
 			ret += "=>/account/delrepo Delete a new repository\n"
+			ret += "=>/account/chdesc Change your account description\n"
 			ret += "=>/account/chpasswd Change your password\n"
 			ret += "=>/account/disconnect Disconnect\n"
 			ret += "\n## Repositories list\n\n"
@@ -416,6 +431,24 @@ func main() {
 			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
 		})
 
+		secure.Handle("/chdesc", func(c gig.Context) error {
+			newdesc, err := c.QueryString()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+			}
+			if newdesc == "" {
+				return c.NoContent(gig.StatusInput, "New account description")
+			}
+			username, exist := db.GetUsername(c.CertHash())
+			if !exist {
+				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+			}
+			if err := db.ChangeDescription(username, newdesc); err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary, "/account")
+		})
+
 		secure.Handle("/repo", func(c gig.Context) error {
 			return c.Gemini("# " + c.Param("name") + "'s user page")
 		})
@@ -458,7 +491,7 @@ func main() {
 					if err := repo.RemoveRepo(name, username); err != nil {
 						return c.NoContent(gig.StatusBadRequest, err.Error())
 					}
-					return c.NoContent(gig.StatusRedirectTemporary, "/account/main")
+					return c.NoContent(gig.StatusRedirectTemporary, "/account")
 				}
 				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
 			}
@@ -479,7 +512,7 @@ func main() {
 					if err != nil {
 						return c.NoContent(gig.StatusBadRequest, err.Error())
 					}
-					return c.NoContent(gig.StatusRedirectTemporary, "/account/main")
+					return c.NoContent(gig.StatusRedirectTemporary, "/account")
 				}
 				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
 			}
@@ -500,7 +533,7 @@ func main() {
 
 	public := g.Group("/repo")
 	{
-		g.Handle("/repo", func(c gig.Context) error {
+		public.Handle("", func(c gig.Context) error {
 			ret := "=>/ Go back\n\n"
 			ret += "# Public repositories\n\n"
 			repos, err := db.GetPublicRepo()
@@ -518,8 +551,15 @@ func main() {
 		})
 
 		public.Handle("/:user", func(c gig.Context) error {
-			ret := "=>/repo Go back\n\n"
-			ret += "# " + c.Param("user") + "'s repositories\n"
+			ret := "=>/repo Go back\n\n# " + c.Param("user") + "\n"
+			desc, err := db.GetUserDesc(c.Param("user"))
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			if desc != "" {
+				ret += desc + "\n"
+			}
+			ret += "\n## Repositories\n"
 			repos, err := db.GetRepoFromUser(c.Param("user"), true)
 			if err != nil {
 				return c.NoContent(gig.StatusTemporaryFailure, "Invalid account, "+err.Error())
@@ -632,7 +672,7 @@ func main() {
 		if !success {
 			return "/error/login", nil
 		}
-		return "/account/main", nil
+		return "/account", nil
 	})
 
 	if cfg.Gemigit.AllowRegistration {
@@ -684,7 +724,7 @@ func main() {
 				ret += "=> /register Register\n"
 			}
 		} else {
-			ret = "# " + cfg.Gemigit.Name + "\n=> /account/main Account page\n"
+			ret = "# " + cfg.Gemigit.Name + "\n=> /account Account page\n"
 		}
 		ret += "=> /repo Public repositories"
 		return c.Gemini(ret)
