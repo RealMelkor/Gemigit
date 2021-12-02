@@ -42,8 +42,9 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 	if desc != "" {
 		ret += "> " + desc + "\n"
 	}
-	ret += "> " + getHttpAddress(user, reponame) + "\n"
+	ret += "> " + getHttpAddress(user, reponame)
 	if owner {
+		ret += "\n"
 		ret += "=>/account/repo/" + reponame + "/chname Change repository name\n"
 		ret += "=>/account/repo/" + reponame + "/chdesc Change repository description\n"
 		ret += "=>/account/repo/" + reponame + "/togglepublic Make the repository "
