@@ -37,7 +37,7 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 	}
 	ret += "# " + reponame
 	if !owner {
-		ret += "by " + user + "\n=>/repo/" + user + " View account\n"
+		ret += " by " + user + "\n=>/repo/" + user + " View account\n"
 	} else {
 		ret += "\n"
 	}
