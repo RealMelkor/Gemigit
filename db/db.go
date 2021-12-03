@@ -357,7 +357,7 @@ func (user User) GetRepos(onlyPublic bool) ([]Repo, error) {
 	var err error
 	query := "SELECT repoID, userID, name, creation, public, description FROM repo WHERE userID=?"
 	if onlyPublic {
-		query += " AND a.public=1"
+		query += " AND public=1"
 	}
 	rows, err = db.Query(query, user.ID)
 	if err != nil {
