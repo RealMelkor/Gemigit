@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"gemigit/config"
 	"log"
 	"os"
 	"strconv"
@@ -54,6 +55,14 @@ func (user *User) repoAlreadyExist(repo string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func DisconnectTimeout() {
+	for k, v := range users {
+		if time.Now().Unix()-v.Connection.Unix() > int64(config.Cfg.Gemigit.AuthTimeout) {
+			delete(users, k)
+		}
+	}
 }
 
 var db *sql.DB

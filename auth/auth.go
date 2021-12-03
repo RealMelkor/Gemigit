@@ -23,6 +23,7 @@ func Decrease() {
 			}
 		}
 		time.Sleep(30 * time.Second)
+		db.DisconnectTimeout()
 	}
 }
 

@@ -14,6 +14,7 @@ type Config struct {
 		Database              string `validate:"required"`
 		MaxAttemptsForIP      int    `validate:"required"`
 		MaxAttemptsForAccount int    `validate:"required"`
+		AuthTimeout           int    `validate:"required"`
 	}
 }
 

@@ -7,3 +7,4 @@ gemigit:
   database: "gemigit.db"
   maxattemptsforip: 10
   maxattemptsforaccount: 30
+  authtimeout: 18000
