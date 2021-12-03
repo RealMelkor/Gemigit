@@ -19,8 +19,8 @@ func Init(path string) error {
 }
 
 func InitRepo(name string, username string) error {
-    _, err := git.PlainInit(rootPath+"/"+username+"/"+name, true)
-    return err
+	_, err := git.PlainInit(rootPath+"/"+username+"/"+name, true)
+	return err
 }
 
 func RemoveRepo(name string, username string) error {
@@ -117,8 +117,8 @@ func GetPublicFile(name string, username string, hash string) (string, error) {
 }
 
 func GetPrivateFile(name string, username string, hash string, sig string) (string, error) {
-	uname, b := db.GetUsername(sig)
-	if !b || username != uname {
+	user, b := db.GetUser(sig)
+	if !b || username != user.Name {
 		return "", errors.New("invalid signature")
 	}
 	repo, err := git.PlainOpen(rootPath + "/" + username + "/" + name)
