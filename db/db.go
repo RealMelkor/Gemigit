@@ -506,3 +506,21 @@ func GetRepoDesc(name string, username string) (string, error) {
 	}
 	return "", errors.New("No repository called " + name + " by user " + username)
 }
+
+func (user *User) UpdateDescription() error {
+	rows, err := db.Query("select description from user WHERE userID=?", user.ID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var dDescription string
+		err = rows.Scan(&dDescription)
+		if err != nil {
+			return err
+		}
+		user.Description = dDescription
+	}
+	users[user.Signature] = *user
+	return nil
+}

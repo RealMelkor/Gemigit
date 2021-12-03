@@ -77,6 +77,10 @@ func main() {
 			}
 			ret := "=>/ Main page\n\n"
 			ret += "# Account : " + user.Name + "\n"
+			err := user.UpdateDescription()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
 			if user.Description != "" {
 				ret += user.Description + "\n\n"
 			} else {
