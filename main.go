@@ -449,7 +449,7 @@ func main() {
 			}
 			if password != "" {
 				if err = db.Register(c.Param("name"), password); err != nil {
-					return c.Gemini("# Registration failure\n" + err.Error() + "\n\n=> /register Retry?\n\n=> / Go back to the main page")
+					return c.NoContent(gig.StatusBadRequest, err.Error())
 				}
 				return c.Gemini("# Your registration was completed successfully\n=> /login Login now")
 			}
