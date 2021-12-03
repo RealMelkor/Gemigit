@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"gemigit/auth"
+	"gemigit/config"
 	"gemigit/db"
 	"gemigit/httpgit"
 	"gemigit/repo"
@@ -18,7 +20,7 @@ import (
 
 func main() {
 
-	if err := loadConfig(); err != nil {
+	if err := config.LoadConfig(); err != nil {
 		log.Fatalln(err.Error())
 	}
 
@@ -28,7 +30,7 @@ func main() {
 				fmt.Println(os.Args[0] + " chpasswd <username> <new password>")
 				return
 			}
-			err := db.Init(cfg.Gemigit.Database)
+			err := db.Init(config.Cfg.Gemigit.Database)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -44,7 +46,7 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	err := db.Init(cfg.Gemigit.Database)
+	err := db.Init(config.Cfg.Gemigit.Database)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -53,7 +55,8 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	go httpgit.Listen("repos/", cfg.Gemigit.Port)
+	go httpgit.Listen("repos/", config.Cfg.Gemigit.Port)
+	go auth.Decrease()
 
 	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | Path=${path}, Status=${status}, Latency=${latency}\n"
 	g := gig.Default()
@@ -67,7 +70,6 @@ func main() {
 		return "", nil
 	}))
 	{
-
 		secure.Handle("", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
@@ -81,7 +83,6 @@ func main() {
 				ret += "\n"
 			}
 			ret += "=>/account/addrepo Create a new repository\n"
-			ret += "=>/account/delrepo Delete a new repository\n"
 			ret += "=>/account/chdesc Change your account description\n"
 			ret += "=>/account/chpasswd Change your password\n"
 			ret += "=>/account/disconnect Disconnect\n"
@@ -250,7 +251,7 @@ func main() {
 			if name != "" {
 				user, b := db.GetUser(c.CertHash())
 				if b {
-					if err := user.CreateRepo(name); err != nil {
+					if err := user.CreateRepo(name, c.CertHash()); err != nil {
 						return c.NoContent(gig.StatusBadRequest, err.Error())
 					}
 					if err := repo.InitRepo(name, user.Name); err != nil {
@@ -264,13 +265,16 @@ func main() {
 			return c.NoContent(gig.StatusInput, "Repository name")
 		})
 
-		secure.Handle("/delrepo", func(c gig.Context) error {
+		secure.Handle("/repo/:repo/delrepo", func(c gig.Context) error {
 
 			name, err := c.QueryString()
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
 			}
 			if name != "" {
+				if name != c.Param("repo") {
+					return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
+				}
 				user, b := db.GetUser(c.CertHash())
 				if b {
 					if err := user.DeleteRepo(name, c.CertHash()); err != nil {
@@ -284,7 +288,7 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
 			}
 
-			return c.NoContent(gig.StatusInput, "Repository name")
+			return c.NoContent(gig.StatusInput, "Type the repository name")
 		})
 
 		secure.Handle("/chpasswd", func(c gig.Context) error {
@@ -315,6 +319,7 @@ func main() {
 			if err := user.Disconnect(c.CertHash()); err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
+
 			return c.NoContent(gig.StatusRedirectTemporary, "/")
 		})
 	}
@@ -406,32 +411,15 @@ func main() {
 		})
 	}
 
-	g.Handle("/error/:error", func(c gig.Context) error {
-		content := ""
-		switch c.Param("error") {
-		case "login":
-			content += "# Failed to login"
-		case "internal":
-			content += "# Internal error"
-		default:
-			content += "# Unknown error"
-		}
-		content += "\n\n=> / Go back to the main page"
-		return c.Gemini(content)
-	})
-
 	g.PassAuthLoginHandle("/login", func(user, pass, sig string, c gig.Context) (string, error) {
-		success, err := db.Login(user, pass, sig)
+		err := auth.Connect(user, pass, sig, c.IP())
 		if err != nil {
-			return "/error/internal", err
-		}
-		if !success {
-			return "/error/login", nil
+			return "", err
 		}
 		return "/account", nil
 	})
 
-	if cfg.Gemigit.AllowRegistration {
+	if config.Cfg.Gemigit.AllowRegistration {
 		g.Handle("/register", func(c gig.Context) error {
 			cert := c.Certificate()
 			if cert == nil {
@@ -474,13 +462,13 @@ func main() {
 		_, connected := db.GetUser(c.CertHash())
 		ret := ""
 		if !connected {
-			ret = "# " + cfg.Gemigit.Name + "\n\n"
+			ret = "# " + config.Cfg.Gemigit.Name + "\n\n"
 			ret += "=> /login Login\n"
-			if cfg.Gemigit.AllowRegistration {
+			if config.Cfg.Gemigit.AllowRegistration {
 				ret += "=> /register Register\n"
 			}
 		} else {
-			ret = "# " + cfg.Gemigit.Name + "\n=> /account Account page\n"
+			ret = "# " + config.Cfg.Gemigit.Name + "\n=> /account Account page\n"
 		}
 		ret += "=> /repo Public repositories"
 		return c.Gemini(ret)

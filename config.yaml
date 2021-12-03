@@ -5,3 +5,5 @@ gemigit:
   domain: "mydomain.com"
   allowRegistration: true
   database: "gemigit.db"
+  maxattemptsforip: 10
+  maxattemptsforaccount: 30

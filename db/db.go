@@ -7,10 +7,8 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"unicode"
 
 	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Repo struct {
@@ -34,60 +32,6 @@ type User struct {
 
 var users = make(map[string]User)
 
-func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
-func checkPassword(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
-}
-
-const (
-	passwordMinLen = 6
-)
-
-func isPasswordValid(password string) (bool, error) {
-	if len(password) == 0 {
-		return false, errors.New("empty password")
-	}
-	if len(password) < passwordMinLen {
-		return false, errors.New("password too short(minimum " + strconv.Itoa(passwordMinLen) + " characters)")
-	}
-	return true, nil
-}
-
-func isNameValid(name string) (bool, error) {
-	if len(name) == 0 {
-		return false, errors.New("empty name")
-	}
-	if !unicode.IsLetter([]rune(name)[0]) {
-		return false, errors.New("your name must start with a letter")
-	}
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
-			return false, errors.New("your name contains invalid characters")
-		}
-	}
-	return true, nil
-}
-
-func isRepoNameValid(name string) (bool, error) {
-	if len(name) == 0 {
-		return false, errors.New("empty name")
-	}
-	if !unicode.IsLetter([]rune(name)[0]) {
-		return false, errors.New("the repository name must start with a letter")
-	}
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
-			return false, errors.New("the repository name contains invalid characters")
-		}
-	}
-	return true, nil
-}
-
 func userAlreadyExist(username string) (bool, error) {
 	rows, err := db.Query("select * from user WHERE UPPER(name) LIKE UPPER(?)", username)
 	if err != nil {
@@ -100,8 +44,8 @@ func userAlreadyExist(username string) (bool, error) {
 	return false, nil
 }
 
-func repoAlreadyExist(username string, repo string) (bool, error) {
-	rows, err := db.Query("SELECT * FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(a.name) LIKE UPPER(?) AND UPPER(b.name) LIKE UPPER(?)", username, repo)
+func (user *User) repoAlreadyExist(repo string) (bool, error) {
+	rows, err := db.Query("SELECT * FROM repo WHERE UPPER(name) LIKE UPPER(?) AND UPPER(userID) LIKE UPPER(?)", repo, user.ID)
 	if err != nil {
 		return true, err
 	}
@@ -148,34 +92,28 @@ func Close() error {
 func createTable(db *sql.DB) error {
 	createUserTable := `CREATE TABLE user (
 		"userID" integer NOT NULL PRIMARY KEY AUTOINCREMENT,		
-		"name" TEXT,
+		"name" TEXT UNIQUE,
 		"password" TEXT,
-		"description" TEXT,
+		"description" TEXT DEFAULT "",
 		"creation" INTEGER		
 	  );`
 
 	createRepoTable := `CREATE TABLE repo (
 		"repoID" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"userID" integer,	
+		"userID" integer,
 		"name" TEXT,
-		"description" TEXT,
+		"description" TEXT DEFAULT "",
 		"creation" INTEGER,
-		"public" INTEGER	
+		"public" INTEGER DEFAULT 0	
 	);`
 
-	statement, err := db.Prepare(createUserTable)
+	_, err := db.Exec(createUserTable)
 	if err != nil {
-		return err
-	}
-	if _, err = statement.Exec(); err != nil {
 		return err
 	}
 	log.Println("Users table created")
-	statement, err = db.Prepare(createRepoTable)
+	_, err = db.Exec(createRepoTable)
 	if err != nil {
-		return err
-	}
-	if _, err = statement.Exec(); err != nil {
 		return err
 	}
 	log.Println("Repositories table created")
@@ -243,17 +181,12 @@ func Register(username string, password string) error {
 		return errors.New("this name is already taken")
 	}
 
-	statement, err := db.Prepare("insert into user(name,password,creation) VALUES(?,?,strftime('%s', 'now'));")
-	if err != nil {
-		return err
-	}
-
 	hash, err := hashPassword(password)
 	if err != nil {
 		return err
 	}
 
-	_, err = statement.Exec(username, hash)
+	_, err = db.Exec("insert into user(name,password,creation) VALUES(?,?,strftime('%s', 'now'));", username, hash)
 	if err != nil {
 		return err
 	}
@@ -261,12 +194,16 @@ func Register(username string, password string) error {
 	return nil
 }
 
-func (user User) CreateRepo(repo string) error {
+func (user User) CreateRepo(repo string, signature string) error {
+	if err := user.VerifySignature(signature); err != nil {
+		return err
+	}
+
 	if isValid, err := isRepoNameValid(repo); !isValid {
 		return err
 	}
 
-	b, err := repoAlreadyExist(user.Name, repo)
+	b, err := user.repoAlreadyExist(repo)
 	if err != nil {
 		return err
 	}
@@ -274,12 +211,7 @@ func (user User) CreateRepo(repo string) error {
 		return errors.New("repo with the same name already exist")
 	}
 
-	statement, err := db.Prepare("insert into repo(userID,name,creation,public,description) VALUES(?,?,strftime('%s', 'now'),0,\"\")")
-	if err != nil {
-		return err
-	}
-
-	_, err = statement.Exec(user.ID, repo)
+	_, err = db.Exec("insert into repo(userID,name,creation,public,description) VALUES(?,?,strftime('%s', 'now'),0,\"\")", user.ID, repo)
 	if err != nil {
 		return err
 	}
@@ -305,9 +237,9 @@ func (user User) DeleteRepo(repo string, signature string) error {
 	return nil
 }
 
-func GetUser(signature string) (*User, bool) {
+func GetUser(signature string) (User, bool) {
 	user, b := users[signature]
-	return &user, b
+	return user, b
 }
 
 func GetPublicUser(name string) (User, error) {
@@ -424,10 +356,6 @@ func IsRepoPublic(repo string, username string) (bool, error) {
 
 func (user User) TogglePublic(repo string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
-		return nil
-	}
-	statement, err := db.Prepare("UPDATE repo SET public=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?")
-	if err != nil {
 		return err
 	}
 	b, err := IsRepoPublic(repo, user.Name)
@@ -438,7 +366,7 @@ func (user User) TogglePublic(repo string, signature string) error {
 	if b {
 		i = 0
 	}
-	_, err = statement.Exec(i, repo, user.ID)
+	_, err = db.Exec("UPDATE repo SET public=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", i, repo, user.ID)
 	if err != nil {
 		return err
 	}
@@ -448,6 +376,9 @@ func (user User) TogglePublic(repo string, signature string) error {
 func (user *User) VerifySignature(signature string) error {
 	if user.Signature != signature {
 		return errors.New("wrong signature")
+	}
+	if users[signature].ID != user.ID {
+		return errors.New("signature doesn't match the user")
 	}
 	return nil
 }
@@ -473,21 +404,21 @@ func ChangePassword(username string, password string) error {
 		return err
 	}
 	if rows < 1 {
-		return errors.New("no password changed")
+		return errors.New("password not changed")
 	}
 	return nil
 }
 
 func (user User) ChangePassword(password string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
-		return nil
+		return err
 	}
 	return ChangePassword(user.Name, password)
 }
 
-func (user *User) ChangeDescription(description string, signature string) error {
+func (user User) ChangeDescription(description string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
-		return nil
+		return err
 	}
 	statement, err := db.Exec("UPDATE user SET description=? WHERE UPPER(name) LIKE UPPER(?)", description, user.Name)
 	if err != nil {
@@ -500,13 +431,18 @@ func (user *User) ChangeDescription(description string, signature string) error 
 	if rows < 1 {
 		return errors.New("no description changed")
 	}
-	user.Description = description
+	u, b := users[signature]
+	if !b {
+		return errors.New("invalid signature detected")
+	}
+	u.Description = description
+	users[signature] = u
 	return nil
 }
 
 func (user User) Disconnect(signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
-		return nil
+		return err
 	}
 	delete(users, signature)
 	return nil
@@ -514,7 +450,7 @@ func (user User) Disconnect(signature string) error {
 
 func (user User) ChangeRepoName(name string, newname string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
-		return nil
+		return err
 	}
 	statement, err := db.Exec("UPDATE repo SET name=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", newname, name, user.ID)
 	if err != nil {

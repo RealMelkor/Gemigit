@@ -7,18 +7,20 @@ import (
 	"log"
 	"strconv"
 
+	"gemigit/config"
+
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pitr/gig"
 )
 
 func getHttpAddress(user string, repo string) string {
 	ret := "git clone "
-	if cfg.Gemigit.Https {
+	if config.Cfg.Gemigit.Https {
 		ret += "https://"
 	} else {
 		ret += "http://"
 	}
-	ret += cfg.Gemigit.Domain + "/" + user + "/" + repo + "\n"
+	ret += config.Cfg.Gemigit.Domain + "/" + user + "/" + repo + "\n"
 	return ret
 }
 
@@ -47,6 +49,7 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		ret += "\n"
 		ret += "=>/account/repo/" + reponame + "/chname Change repository name\n"
 		ret += "=>/account/repo/" + reponame + "/chdesc Change repository description\n"
+		ret += "=>/account/repo/" + reponame + "/delrepo Delete repository\n"
 		ret += "=>/account/repo/" + reponame + "/togglepublic Make the repository "
 		b, err := db.IsRepoPublic(reponame, user)
 		if err != nil {
