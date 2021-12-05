@@ -452,6 +452,13 @@ func (user User) ChangeRepoName(name string, newname string, signature string) e
 	if err := user.VerifySignature(signature); err != nil {
 		return err
 	}
+	b, err := isRepoNameValid(newname)
+	if err != nil {
+		return err
+	}
+	if !b {
+		return errors.New("invalid name")
+	}
 	statement, err := db.Exec("UPDATE repo SET name=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", newname, name, user.ID)
 	if err != nil {
 		return err
