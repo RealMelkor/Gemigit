@@ -398,7 +398,6 @@ func main() {
 
 		public.Handle("/:user/:repo/*", func(c gig.Context) error {
 			repofile, err := repo.GetFile(c.Param("repo"), c.Param("user"), c.Param("*"))
-			log.Println(c.Param("*"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
