@@ -54,7 +54,8 @@ func logging(next http.Handler) http.Handler {
 		t1 := time.Now()
 		next.ServeHTTP(w, r)
 		t2 := time.Now()
-		log.Println("["+r.RemoteAddr+"]["+r.Method+"]", r.URL.String(), t2.Sub(t1))
+		realIP := r.Header.Get("X-Real-IP")
+		log.Println("["+realIP+"]["+r.Method+"]", r.URL.String(), t2.Sub(t1))
 	})
 }
 
