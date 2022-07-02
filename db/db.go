@@ -46,7 +46,8 @@ func userAlreadyExist(username string) (bool, error) {
 }
 
 func (user *User) repoAlreadyExist(repo string) (bool, error) {
-	rows, err := db.Query("SELECT * FROM repo WHERE UPPER(name) LIKE UPPER(?) AND UPPER(userID) LIKE UPPER(?)", repo, user.ID)
+	rows, err := db.Query("SELECT * FROM repo WHERE UPPER(name) LIKE UPPER(?)" +
+			      " AND UPPER(userID) LIKE UPPER(?)", repo, user.ID)
 	if err != nil {
 		return true, err
 	}
@@ -59,7 +60,8 @@ func (user *User) repoAlreadyExist(repo string) (bool, error) {
 
 func DisconnectTimeout() {
 	for k, v := range users {
-		if time.Now().Unix()-v.Connection.Unix() > int64(config.Cfg.Gemigit.AuthTimeout) {
+		if time.Now().Unix()-v.Connection.Unix() >
+		   int64(config.Cfg.Gemigit.AuthTimeout) {
 			delete(users, k)
 		}
 	}
@@ -130,7 +132,8 @@ func createTable(db *sql.DB) error {
 }
 
 func CheckAuth(username string, password string) (bool, error) {
-	rows, err := db.Query("select name, password from user WHERE UPPER(name) LIKE UPPER(?)", username)
+	rows, err := db.Query("select name, password from user" +
+			      " WHERE UPPER(name) LIKE UPPER(?)", username)
 	if err != nil {
 		return false, err
 	}
@@ -150,7 +153,8 @@ func CheckAuth(username string, password string) (bool, error) {
 }
 
 func Login(username string, password string, signature string) (bool, error) {
-	rows, err := db.Query("select userID, name, description, creation, password from user WHERE UPPER(name) LIKE UPPER(?)", username)
+	rows, err := db.Query("select userID, name, description, creation, password" +
+			      " from user WHERE UPPER(name) LIKE UPPER(?)", username)
 	if err != nil {
 		return false, err
 	}
@@ -166,7 +170,11 @@ func Login(username string, password string, signature string) (bool, error) {
 			return false, err
 		}
 		if checkPassword(password, dPassword) {
-			users[signature] = User{ID: dID, Name: dName, Description: dDescription, Registration: dCreation, Connection: time.Now(), Signature: signature}
+			users[signature] = User{ID: dID, Name: dName,
+						Description: dDescription,
+						Registration: dCreation,
+						Connection: time.Now(),
+						Signature: signature}
 			return true, nil
 		}
 	}
@@ -195,7 +203,8 @@ func Register(username string, password string) error {
 		return err
 	}
 
-	_, err = db.Exec("insert into user(name,password,creation) VALUES(?,?,strftime('%s', 'now'));", username, hash)
+	_, err = db.Exec("insert into user(name,password,creation) " +
+			 "VALUES(?,?,strftime('%s', 'now'));", username, hash)
 	if err != nil {
 		return err
 	}
@@ -220,11 +229,38 @@ func (user User) CreateRepo(repo string, signature string) error {
 		return errors.New("repo with the same name already exist")
 	}
 
-	_, err = db.Exec("insert into repo(userID,name,creation,public,description) VALUES(?,?,strftime('%s', 'now'),0,\"\")", user.ID, repo)
+	_, err = db.Exec("insert into repo(userID,name,creation,public,description)" +
+			 " VALUES(?,?,strftime('%s', 'now'),0,\"\")", user.ID, repo)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func DeleteUser(username string) error {
+	statement, err := db.Exec("delete FROM repo " +
+				  "WHERE userID in " +
+				  "( SELECT userID from user " +
+				  "where UPPER(name) LIKE UPPER(?))", username)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	statement, err = db.Exec("delete FROM user WHERE name=?", username)
+	if err != nil {
+		return err
+	}
+	rows, err = statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("user " + username + " not found")
+	}
 	return nil
 }
 
@@ -252,7 +288,8 @@ func GetUser(signature string) (User, bool) {
 }
 
 func GetPublicUser(name string) (User, error) {
-	rows, err := db.Query("select userID, name, description, creation from user WHERE UPPER(name) LIKE UPPER(?)", name)
+	rows, err := db.Query("select userID, name, description, creation" +
+			      " from user WHERE UPPER(name) LIKE UPPER(?)", name)
 	if err != nil {
 		return User{}, err
 	}
@@ -266,13 +303,19 @@ func GetPublicUser(name string) (User, error) {
 		if err != nil {
 			return User{}, err
 		}
-		return User{ID: dID, Name: dName, Description: dDescription, Registration: dCreation}, nil
+		return User{ID: dID,
+			    Name: dName,
+			    Description: dDescription,
+			    Registration: dCreation}, nil
 	}
 	return User{}, errors.New(name + ", user not found")
 }
 
 func (user User) GetRepo(reponame string) (Repo, error) {
-	rows, err := db.Query("SELECT repoID, userID, name, creation, public, description FROM repo WHERE UPPER(name) LIKE UPPER(?) AND userID=?", reponame, user.ID)
+	rows, err := db.Query("SELECT repoID, userID, name," + 
+			      " creation, public, description" +
+			      " FROM repo WHERE UPPER(name) LIKE UPPER(?)" +
+			      " AND userID=?", reponame, user.ID)
 	if err != nil {
 		return Repo{}, err
 	}
@@ -290,13 +333,15 @@ func (user User) GetRepo(reponame string) (Repo, error) {
 		}
 		return Repo{ID, uID, user.Name, name, date, public, description}, nil
 	}
-	return Repo{}, errors.New("No repository called " + reponame + " by user " + user.Name)
+	return Repo{}, errors.New("No repository called " + 
+				  reponame + " by user " + user.Name)
 }
 
 func (user User) GetRepos(onlyPublic bool) ([]Repo, error) {
 	var rows *sql.Rows
 	var err error
-	query := "SELECT repoID, userID, name, creation, public, description FROM repo WHERE userID=?"
+	query := "SELECT repoID, userID, name, creation, public, description " + 
+		 "FROM repo WHERE userID=?"
 	if onlyPublic {
 		query += " AND public=1"
 	}
@@ -317,13 +362,17 @@ func (user User) GetRepos(onlyPublic bool) ([]Repo, error) {
 		if err != nil {
 			return nil, err
 		}
-		repos = append(repos, Repo{ID, uID, user.Name, name, date, public, description})
+		repos = append(repos, Repo{ID, uID, user.Name, name,
+					   date, public, description})
 	}
 	return repos, nil
 }
 
 func GetPublicRepo() ([]Repo, error) {
-	rows, err := db.Query("SELECT b.name, a.repoID, a.userID, a.name, a.creation, a.public, a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE a.public=1")
+	rows, err := db.Query("SELECT b.name, a.repoID, a.userID, a.name, " +
+			      "a.creation, a.public, a.description " +
+			      "FROM repo a INNER JOIN user b " +
+			      "ON a.userID=b.userID WHERE a.public=1")
 	if err != nil {
 		return nil, err
 	}
@@ -337,17 +386,22 @@ func GetPublicRepo() ([]Repo, error) {
 		var date int
 		var public bool
 		var description string
-		err = rows.Scan(&username, &ID, &uID, &name, &date, &public, &description)
+		err = rows.Scan(&username, &ID, &uID, &name,
+				&date, &public, &description)
 		if err != nil {
 			return nil, err
 		}
-		repos = append(repos, Repo{ID, uID, username, name, date, public, description})
+		repos = append(repos, Repo{ID, uID, username,
+					   name, date, public, description})
 	}
 	return repos, nil
 }
 
 func IsRepoPublic(repo string, username string) (bool, error) {
-	rows, err := db.Query("SELECT a.public FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(a.name) LIKE UPPER(?) AND UPPER(b.name) LIKE UPPER(?)", repo, username)
+	rows, err := db.Query("SELECT a.public FROM repo a " +
+			      "INNER JOIN user b ON a.userID=b.userID " +
+			      "WHERE UPPER(a.name) LIKE UPPER(?) " +
+			      "AND UPPER(b.name) LIKE UPPER(?)", repo, username)
 	if err != nil {
 		return false, err
 	}
@@ -375,7 +429,9 @@ func (user User) TogglePublic(repo string, signature string) error {
 	if b {
 		i = 0
 	}
-	_, err = db.Exec("UPDATE repo SET public=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", i, repo, user.ID)
+	_, err = db.Exec("UPDATE repo SET public=? " +
+			 "WHERE UPPER(name) LIKE UPPER(?) " + 
+			 "AND userID=?", i, repo, user.ID)
 	if err != nil {
 		return err
 	}
@@ -404,7 +460,9 @@ func ChangePassword(username string, password string) error {
 	if err != nil {
 		return err
 	}
-	statement, err := db.Exec("UPDATE user SET password=? WHERE UPPER(name) LIKE UPPER(?)", hPassword, username)
+	statement, err := db.Exec("UPDATE user SET password=? " + 
+				  "WHERE UPPER(name) LIKE UPPER(?)",
+				  hPassword, username)
 	if err != nil {
 		return err
 	}
@@ -413,7 +471,7 @@ func ChangePassword(username string, password string) error {
 		return err
 	}
 	if rows < 1 {
-		return errors.New("password not changed")
+		return errors.New("unknown user " + username)
 	}
 	return nil
 }
@@ -429,7 +487,9 @@ func (user User) ChangeDescription(description string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
 		return err
 	}
-	statement, err := db.Exec("UPDATE user SET description=? WHERE UPPER(name) LIKE UPPER(?)", description, user.Name)
+	statement, err := db.Exec("UPDATE user SET description=? " +
+				  "WHERE UPPER(name) LIKE UPPER(?)",
+				  description, user.Name)
 	if err != nil {
 		return err
 	}
@@ -468,7 +528,9 @@ func (user User) ChangeRepoName(name string, newname string, signature string) e
 	if !b {
 		return errors.New("invalid name")
 	}
-	statement, err := db.Exec("UPDATE repo SET name=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", newname, name, user.ID)
+	statement, err := db.Exec("UPDATE repo SET name=? " +
+				  "WHERE UPPER(name) LIKE UPPER(?) AND userID=?",
+				  newname, name, user.ID)
 	if err != nil {
 		return err
 	}
@@ -483,7 +545,9 @@ func (user User) ChangeRepoName(name string, newname string, signature string) e
 }
 
 func (user User) ChangeRepoDesc(name string, newdesc string) error {
-	statement, err := db.Exec("UPDATE repo SET description=? WHERE UPPER(name) LIKE UPPER(?) AND userID=?", newdesc, name, user.ID)
+	statement, err := db.Exec("UPDATE repo SET description=?" +
+				  " WHERE UPPER(name) LIKE UPPER(?) " +
+				  " AND userID=?", newdesc, name, user.ID)
 	if err != nil {
 		return err
 	}
@@ -498,7 +562,10 @@ func (user User) ChangeRepoDesc(name string, newdesc string) error {
 }
 
 func GetRepoDesc(name string, username string) (string, error) {
-	rows, err := db.Query("SELECT a.description FROM repo a INNER JOIN user b ON a.userID=b.userID WHERE UPPER(a.name) LIKE UPPER(?) AND UPPER(b.name) LIKE UPPER(?)", name, username)
+	rows, err := db.Query("SELECT a.description FROM repo a " +
+			      "INNER JOIN user b ON a.userID=b.userID " +
+			      "WHERE UPPER(a.name) LIKE UPPER(?) " +
+			      "AND UPPER(b.name) LIKE UPPER(?)", name, username)
 	if err != nil {
 		return "", err
 	}

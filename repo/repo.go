@@ -141,5 +141,6 @@ func GetPrivateFile(name string, username string, hash string, sig string) (stri
 }
 
 func ChangeRepoDir(name string, username string, newname string) error {
-	return os.Rename(rootPath+"/"+username+"/"+name, rootPath+"/"+username+"/"+newname)
+	return os.Rename(rootPath+"/"+username+"/"+name, 
+			 rootPath+"/"+username+"/"+newname)
 }

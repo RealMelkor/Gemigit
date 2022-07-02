@@ -46,11 +46,15 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 	}
 	ret += "> " + getHttpAddress(user, reponame)
 	if owner {
-		ret += "\n"
-		ret += "=>/account/repo/" + reponame + "/chname Change repository name\n"
-		ret += "=>/account/repo/" + reponame + "/chdesc Change repository description\n"
-		ret += "=>/account/repo/" + reponame + "/delrepo Delete repository\n"
-		ret += "=>/account/repo/" + reponame + "/togglepublic Make the repository "
+		ret += "\n" +
+		"=>/account/repo/" + reponame + 
+		"/chname Change repository name\n" +
+		"=>/account/repo/" + reponame + 
+		"/chdesc Change repository description\n" +
+		"=>/account/repo/" + reponame + 
+		"/delrepo Delete repository\n" +
+		"=>/account/repo/" + reponame + 
+		"/togglepublic Make the repository "
 		b, err := db.IsRepoPublic(reponame, user)
 		if err != nil {
 			return "", err
@@ -75,11 +79,13 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		ret += "=>/repo/" + user + "/" + reponame + "/files Files\n"
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
-			ret += "=>/repo/" + user + "/" + reponame + "/license License\n"
+			ret += "=>/repo/" + user + "/" + 
+				reponame + "/license License\n"
 		}
 		file, err = repo.GetFile(reponame, user, "README")
 		if file != nil && err == nil {
-			ret += "=>/repo/" + user + "/" + reponame + "/readme Readme\n"
+			ret += "=>/repo/" + user + "/" + 
+				reponame + "/readme Readme\n"
 		}
 	}
 
@@ -99,7 +105,11 @@ func showRepoFiles(user string, reponame string, owner bool) (string, error) {
 			} else {
 				ret += "=>/repo/" + user + "/"
 			}
-			ret += reponame + "/files/" + f.Blob.Hash.String() + " " + f.Mode.String() + " " + f.Name + " " + strconv.Itoa(int(f.Size)) + "\n"
+			ret += reponame + "/files/" + 
+			       f.Blob.Hash.String() + " " + 
+			       f.Mode.String() + " " + 
+			       f.Name + " " + 
+			       strconv.Itoa(int(f.Size)) + "\n"
 			return nil
 		})
 		if err != nil {
@@ -119,7 +129,10 @@ func showRepoCommits(user string, reponame string) (string, error) {
 	ret := "\n## Commits\n\n"
 	if commits != nil {
 		err = commits.ForEach(func(c *object.Commit) error {
-			ret += "* " + c.Hash.String() + ", by " + c.Author.Name + " on " + c.Author.When.Format("2006-01-02 15:04:05") + "\n"
+			ret += "* " + c.Hash.String() + 
+				", by " + c.Author.Name +
+				" on " + c.Author.When.Format("2006-01-02 15:04:05") + 
+				"\n"
 			ret += "> " + c.Message + "\n"
 			return nil
 		})

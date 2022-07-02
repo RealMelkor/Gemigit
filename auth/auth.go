@@ -33,7 +33,8 @@ func Connect(username string, password string, signature string, ip string) erro
 		if attempts < config.Cfg.Gemigit.MaxAttemptsForAccount {
 			userAttempts[username]++
 		} else {
-			return errors.New("the account is locked, too many connections attempts")
+			return errors.New("the account is locked, " + 
+					  "too many connections attempts")
 		}
 	} else {
 		userAttempts[username] = 1
