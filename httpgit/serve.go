@@ -66,7 +66,8 @@ func basicAuth(next http.Handler) http.Handler {
 			renderNotFound(w)
 			return
 		}
-		if strings.Contains(r.URL.Path, "git-upload-pack") || strings.Contains(r.URL.RawQuery, "git-upload-pack") {
+		if strings.Contains(r.URL.Path, "git-upload-pack") || 
+		   strings.Contains(r.URL.RawQuery, "git-upload-pack") {
 			b, err := db.IsRepoPublic(params[1], params[0])
 			if err != nil {
 				renderNotFound(w)
@@ -101,7 +102,8 @@ func renderNotFound(w http.ResponseWriter) {
 }
 
 func renderUnauthorized(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", `Basic realm="Please enter your username and password."`)
+	w.Header().Set("WWW-Authenticate", "Basic realm=\"" +
+			"Please enter your username and password.\"")
 	w.WriteHeader(http.StatusUnauthorized)
 	w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
 	w.Header().Set("Content-Type", "text/plain")

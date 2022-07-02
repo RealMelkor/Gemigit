@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"gemigit/auth"
 	"gemigit/config"
@@ -25,9 +26,55 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
-		if os.Args[1] == "chpasswd" {
-			if len(os.Args) < 4 {
-				fmt.Println(os.Args[0] + " chpasswd <username> <new password>")
+		switch (os.Args[1]) {
+		case "chpasswd":
+			if len(os.Args) < 3 {
+				fmt.Println(os.Args[0] + " chpasswd <username>")
+				return
+			}
+			fmt.Print("New Password : ")
+			password, err := terminal.ReadPassword(0)
+			fmt.Print("\n")
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			err = db.Init(config.Cfg.Gemigit.Database)
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			defer db.Close()
+			if err := db.ChangePassword(os.Args[2], string(password));
+			   err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			fmt.Println(os.Args[2] + "'s password changed")
+			return
+		case "register":
+			if len(os.Args) < 3 {
+				fmt.Println(os.Args[0] + " register <username>")
+				return
+			}
+			fmt.Print("Password : ")
+			password, err := terminal.ReadPassword(0)
+			fmt.Print("\n")
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			err = db.Init(config.Cfg.Gemigit.Database)
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			defer db.Close()
+			if err := db.Register(os.Args[2], string(password)); err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			fmt.Println("User " + os.Args[2] + " created")
+			return
+		case "rmuser":
+			if len(os.Args) < 3 {
+				fmt.Println(os.Args[0] + " rmuser <username>")
 				return
 			}
 			err := db.Init(config.Cfg.Gemigit.Database)
@@ -35,13 +82,19 @@ func main() {
 				log.Fatalln(err.Error())
 			}
 			defer db.Close()
-			if err := db.ChangePassword(os.Args[2], os.Args[3]); err != nil {
-				fmt.Println(err.Error())
-				return
+			err = db.DeleteUser(os.Args[2])
+			if err != nil {
+				log.Fatalln(err)
 			}
-			fmt.Println(os.Args[2] + "'s password changed")
+			fmt.Println("User " + os.Args[2] + " deleted successfully")
 			return
 		}
+		fmt.Println("usage: " + os.Args[0] + " [command]")
+		fmt.Println("commands :")
+		fmt.Println("\tchpasswd <username>")
+		fmt.Println("\tregister <username>")
+		fmt.Println("\trmuser <username>")
+		return
 	}
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -58,11 +111,14 @@ func main() {
 	go httpgit.Listen("repos/", config.Cfg.Gemigit.Port)
 	go auth.Decrease()
 
-	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | Path=${path}, Status=${status}, Latency=${latency}\n"
+	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | " +
+					 "Path=${path}, Status=${status}, " +
+					 "Latency=${latency}\n"
 	g := gig.Default()
 	g.Use(gig.Recover())
 
-	secure := g.Group("/account", gig.PassAuth(func(sig string, c gig.Context) (string, error) {
+	secure := g.Group("/account", gig.PassAuth(
+	func(sig string, c gig.Context) (string, error) {
 		_, b := db.GetUser(sig)
 		if !b {
 			return "/login", nil
@@ -73,10 +129,12 @@ func main() {
 		secure.Handle("", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
-			ret := "=>/ Main page\n\n"
-			ret += "# Account : " + user.Name + "\n"
+			ret :=
+			"=>/ Main page\n\n" +
+			"# Account : " + user.Name + "\n"
 			err := user.UpdateDescription()
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
@@ -86,20 +144,22 @@ func main() {
 			} else {
 				ret += "\n"
 			}
-			ret += "=>/account/addrepo Create a new repository\n"
-			ret += "=>/account/chdesc Change your account description\n"
-			ret += "=>/account/chpasswd Change your password\n"
-			ret += "=>/account/disconnect Disconnect\n"
-			ret += "\n## Repositories list\n\n"
+			ret +=
+			"=>/account/addrepo Create a new repository\n" +
+			"=>/account/chdesc Change your account description\n" +
+			"=>/account/chpasswd Change your password\n" +
+			"=>/account/disconnect Disconnect\n" +
+			"\n## Repositories list\n\n"
 
 			repos, err := user.GetRepos(false)
 			if err != nil {
 				ret += "Failed to load user's repositories\n"
 				log.Println(err)
-			} else {
-				for _, repo := range repos {
-					ret += "=>/account/repo/" + repo.Name + " " + repo.Name + "\n"
-				}
+				return c.Gemini(ret)
+			}
+			for _, repo := range repos {
+				ret += "=>/account/repo/" + repo.Name + 
+					" " + repo.Name + "\n"
 			}
 
 			return c.Gemini(ret)
@@ -108,34 +168,40 @@ func main() {
 		secure.Handle("/repo/:repo/files", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
 			query, err := c.QueryString()
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			if query != "" {
-				repofile, err := repo.GetFile(c.Param("repo"), user.Name, query)
-				if err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-				contents, err := repofile.Contents()
-				if err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-				return c.Gemini(contents)
+			if query == "" {
+				return repoRequest(c, "files", true)
 			}
-			return repoRequest(c, "files", true)
+			repofile, err := repo.GetFile(c.Param("repo"), user.Name, query)
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			contents, err := repofile.Contents()
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.Gemini(contents)
 		})
 
 		secure.Handle("/repo/:repo/files/:blob", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
-			content, err := repo.GetPrivateFile(c.Param("repo"), user.Name, c.Param("blob"), c.CertHash())
+			content, err := repo.GetPrivateFile(c.Param("repo"),
+							    user.Name,
+							    c.Param("blob"),
+							    c.CertHash())
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, err.Error())
+				return c.NoContent(gig.StatusBadRequest,
+						   err.Error())
 			}
 			lines := strings.Split(content, "\n")
 			file := ""
@@ -156,9 +222,12 @@ func main() {
 		secure.Handle("/repo/:repo/*", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
-			repofile, err := repo.GetFile(c.Param("repo"), user.Name, c.Param("*"))
+			repofile, err := repo.GetFile(c.Param("repo"),
+						      user.Name,
+						      c.Param("*"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
@@ -181,18 +250,22 @@ func main() {
 		secure.Handle("/repo/:repo/togglepublic", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
-			if err := user.TogglePublic(c.Param("repo"), c.CertHash()); err != nil {
+			if err := user.TogglePublic(c.Param("repo"), c.CertHash());
+			   err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
+			return c.NoContent(gig.StatusRedirectTemporary,
+					   "/account/repo/" + c.Param("repo"))
 		})
 
 		secure.Handle("/repo/:repo/chname", func(c gig.Context) error {
 			newname, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid input received")
 			}
 			if newname == "" {
 				return c.NoContent(gig.StatusInput, "New repository name")
@@ -201,46 +274,58 @@ func main() {
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest, "Invalid username")
 			}
-			if err := user.ChangeRepoName(c.Param("repo"), newname, c.CertHash()); err != nil {
+			if err := user.ChangeRepoName(c.Param("repo"), newname, c.CertHash());
+			   err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			if err := repo.ChangeRepoDir(c.Param("repo"), user.Name, newname); err != nil {
+			if err := repo.ChangeRepoDir(c.Param("repo"), user.Name, newname);
+			   err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+newname)
+			return c.NoContent(gig.StatusRedirectTemporary,
+					   "/account/repo/" + newname)
 		})
 
 		secure.Handle("/repo/:repo/chdesc", func(c gig.Context) error {
 			newdesc, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid input received")
 			}
 			if newdesc == "" {
-				return c.NoContent(gig.StatusInput, "New repository description")
+				return c.NoContent(gig.StatusInput,
+						   "New repository description")
 			}
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
-			if err := user.ChangeRepoDesc(c.Param("repo"), newdesc); err != nil {
+			if err := user.ChangeRepoDesc(c.Param("repo"), newdesc);
+			   err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
+			return c.NoContent(gig.StatusRedirectTemporary,
+					   "/account/repo/" + c.Param("repo"))
 		})
 
 		secure.Handle("/chdesc", func(c gig.Context) error {
 			newdesc, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid input received")
 			}
 			if newdesc == "" {
-				return c.NoContent(gig.StatusInput, "New account description")
+				return c.NoContent(gig.StatusInput,
+						   "New account description")
 			}
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
-			if err := user.ChangeDescription(newdesc, c.CertHash()); err != nil {
+			if err := user.ChangeDescription(newdesc, c.CertHash());
+			   err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
 			return c.NoContent(gig.StatusRedirectTemporary, "/account")
@@ -252,78 +337,95 @@ func main() {
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			if name != "" {
-				user, b := db.GetUser(c.CertHash())
-				if b {
-					if err := user.CreateRepo(name, c.CertHash()); err != nil {
-						return c.NoContent(gig.StatusBadRequest, err.Error())
-					}
-					if err := repo.InitRepo(name, user.Name); err != nil {
-						return c.NoContent(gig.StatusBadRequest, err.Error())
-					}
-					return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+name)
-				}
-				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
+			if name == "" {
+				return c.NoContent(gig.StatusInput, "Repository name")
 			}
+			user, b := db.GetUser(c.CertHash())
+			if !b {
+				return c.NoContent(gig.StatusBadRequest,
+						   "Cannot find username")
+			}
+			if err := user.CreateRepo(name, c.CertHash());
+			   err != nil {
+				return c.NoContent(gig.StatusBadRequest,
+						   err.Error())
+			}
+			if err := repo.InitRepo(name, user.Name); err != nil {
+				return c.NoContent(gig.StatusBadRequest,
+						   err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary,
+					   "/account/repo/" + name)
 
-			return c.NoContent(gig.StatusInput, "Repository name")
 		})
 
 		secure.Handle("/repo/:repo/delrepo", func(c gig.Context) error {
 
 			name, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid input received")
 			}
 			if name != "" {
-				if name != c.Param("repo") {
-					return c.NoContent(gig.StatusRedirectTemporary, "/account/repo/"+c.Param("repo"))
-				}
-				user, b := db.GetUser(c.CertHash())
-				if b {
-					if err := user.DeleteRepo(name, c.CertHash()); err != nil {
-						return c.NoContent(gig.StatusBadRequest, err.Error())
-					}
-					if err := repo.RemoveRepo(name, user.Name); err != nil {
-						return c.NoContent(gig.StatusBadRequest, err.Error())
-					}
-					return c.NoContent(gig.StatusRedirectTemporary, "/account")
-				}
-				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
+				return c.NoContent(gig.StatusInput,
+						   "Type the repository name")
 			}
-
-			return c.NoContent(gig.StatusInput, "Type the repository name")
+			if name != c.Param("repo") {
+				return c.NoContent(gig.StatusRedirectTemporary,
+						   "/account/repo/" + 
+						   c.Param("repo"))
+			}
+			user, b := db.GetUser(c.CertHash())
+			if !b {
+				return c.NoContent(gig.StatusBadRequest,
+						   "Cannot find username")
+			}
+			if err := user.DeleteRepo(name, c.CertHash());
+			   err != nil {
+				return c.NoContent(gig.StatusBadRequest,
+						   err.Error())
+			}
+			if err := repo.RemoveRepo(name, user.Name);
+			   err != nil {
+				return c.NoContent(gig.StatusBadRequest,
+						   err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary,
+					   "/account")
 		})
 
 		secure.Handle("/chpasswd", func(c gig.Context) error {
 			passwd, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid input received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid input received")
 			}
-			if passwd != "" {
-
-				user, b := db.GetUser(c.CertHash())
-				if b {
-					err := user.ChangePassword(passwd, c.CertHash())
-					if err != nil {
-						return c.NoContent(gig.StatusBadRequest, err.Error())
-					}
-					return c.NoContent(gig.StatusRedirectTemporary, "/account")
-				}
-				return c.NoContent(gig.StatusBadRequest, "Cannot find username")
+			if passwd == "" {
+				return c.NoContent(gig.StatusSensitiveInput,
+						   "New password")
 			}
-			return c.NoContent(gig.StatusSensitiveInput, "New password")
+			user, b := db.GetUser(c.CertHash())
+			if !b {
+				return c.NoContent(gig.StatusBadRequest,
+						   "Cannot find username")
+			}
+			err = user.ChangePassword(passwd, c.CertHash())
+			if err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.NoContent(gig.StatusRedirectTemporary,
+					   "/account")
 		})
 
 		secure.Handle("/disconnect", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
-				return c.NoContent(gig.StatusBadRequest, "Invalid username")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
 			}
 			if err := user.Disconnect(c.CertHash()); err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-
 			return c.NoContent(gig.StatusRedirectTemporary, "/")
 		})
 	}
@@ -336,10 +438,13 @@ func main() {
 			repos, err := db.GetPublicRepo()
 			if err != nil {
 				log.Println(err.Error())
-				return c.NoContent(gig.StatusTemporaryFailure, "Internal error, "+err.Error())
+				return c.NoContent(gig.StatusTemporaryFailure,
+						   "Internal error, "+err.Error())
 			}
 			for _, repo := range repos {
-				ret += "=> /repo/" + repo.Username + "/" + repo.Name + " " + repo.Name + " by " + repo.Username + "\n"
+				ret += "=> /repo/" + repo.Username +
+					"/" + repo.Name + " " + 
+					repo.Name + " by " + repo.Username + "\n"
 				if repo.Description != "" {
 					ret += "> " + repo.Description + "\n"
 				}
@@ -359,10 +464,12 @@ func main() {
 			ret += "## Repositories\n"
 			repos, err := user.GetRepos(true)
 			if err != nil {
-				return c.NoContent(gig.StatusTemporaryFailure, "Invalid account, "+err.Error())
+				return c.NoContent(gig.StatusTemporaryFailure,
+						   "Invalid account, " + err.Error())
 			}
 			for _, repo := range repos {
-				ret += "=> /repo/" + repo.Username + "/" + repo.Name + " " + repo.Name + "\n"
+				ret += "=> /repo/" + repo.Username +
+					"/" + repo.Name + " " + repo.Name + "\n"
 			}
 			return c.Gemini(ret)
 		})
@@ -372,7 +479,9 @@ func main() {
 		})
 
 		public.Handle("/:user/:repo/files/:blob", func(c gig.Context) error {
-			content, err := repo.GetPublicFile(c.Param("repo"), c.Param("user"), c.Param("blob"))
+			content, err := repo.GetPublicFile(c.Param("repo"), 
+							   c.Param("user"),
+							   c.Param("blob"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
@@ -397,7 +506,9 @@ func main() {
 		})
 
 		public.Handle("/:user/:repo/*", func(c gig.Context) error {
-			repofile, err := repo.GetFile(c.Param("repo"), c.Param("user"), c.Param("*"))
+			repofile, err := repo.GetFile(c.Param("repo"),
+						      c.Param("user"),
+						      c.Param("*"))
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
@@ -414,7 +525,8 @@ func main() {
 		})
 	}
 
-	g.PassAuthLoginHandle("/login", func(user, pass, sig string, c gig.Context) (string, error) {
+	g.PassAuthLoginHandle("/login",
+	func(user, pass, sig string, c gig.Context) (string, error) {
 		err := auth.Connect(user, pass, sig, c.IP())
 		if err != nil {
 			return "", err
@@ -423,18 +535,22 @@ func main() {
 	})
 
 	if config.Cfg.Gemigit.AllowRegistration {
-		g.Handle("/register", func(c gig.Context) error {
+		g.Handle("/register",
+		func(c gig.Context) error {
 			cert := c.Certificate()
 			if cert == nil {
-				return c.NoContent(gig.StatusClientCertificateRequired, "Certificate required")
+				return c.NoContent(gig.StatusClientCertificateRequired,
+						   "Certificate required")
 			}
 
 			name, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid name received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid name received")
 			}
 			if name != "" {
-				return c.NoContent(gig.StatusRedirectPermanent, "/register/"+name)
+				return c.NoContent(gig.StatusRedirectPermanent,
+						   "/register/"+name)
 			}
 
 			return c.NoContent(gig.StatusInput, "Username")
@@ -443,21 +559,23 @@ func main() {
 		g.Handle("/register/:name", func(c gig.Context) error {
 			cert := c.Certificate()
 			if cert == nil {
-				return c.NoContent(gig.StatusClientCertificateRequired, "Certificate required")
+				return c.NoContent(gig.StatusClientCertificateRequired,
+						   "Certificate required")
 			}
 
 			password, err := c.QueryString()
 			if err != nil {
-				return c.NoContent(gig.StatusBadRequest, "Invalid password received")
+				return c.NoContent(gig.StatusBadRequest,
+						   "Invalid password received")
 			}
 			if password != "" {
-				if err = db.Register(c.Param("name"), password); err != nil {
-					return c.NoContent(gig.StatusBadRequest, err.Error())
-				}
-				return c.Gemini("# Your registration was completed successfully\n=> /login Login now")
+				return c.NoContent(gig.StatusSensitiveInput, "Password")
 			}
-
-			return c.NoContent(gig.StatusSensitiveInput, "Password")
+			if err = db.Register(c.Param("name"), password); err != nil {
+				return c.NoContent(gig.StatusBadRequest, err.Error())
+			}
+			return c.Gemini("# Your registration was completed successfully\n" +
+					"=> /login Login now")
 		})
 	}
 
@@ -471,7 +589,8 @@ func main() {
 				ret += "=> /register Register\n"
 			}
 		} else {
-			ret = "# " + config.Cfg.Gemigit.Name + "\n=> /account Account page\n"
+			ret = "# " + config.Cfg.Gemigit.Name + "\n\n" +
+			      "=> /account Account page\n"
 		}
 		ret += "=> /repo Public repositories"
 		return c.Gemini(ret)

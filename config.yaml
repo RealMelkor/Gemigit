@@ -1,10 +1,12 @@
 gemigit:
-  https: true
-  port: 5555
-  name: "Gemigit"
-  domain: "mydomain.com"
+  https: true # show https instead of http in the repo page (when using a reverse proxy)
+  port: 5555 # bind port for http git request
+  name: "Gemigit" # Title on the main page
+  domain: "mydomain.com" # Domain for the http git request
   allowRegistration: true
-  database: "gemigit.db"
-  maxattemptsforip: 10
-  maxattemptsforaccount: 30
-  authtimeout: 18000
+  database: "gemigit.db" # sqlite3 database file
+  maxAttemptsForIp: 10 # Maximum connection attempts before the ip is blocked
+  maxAttemptsForAccount: 30 # Maximum connection attempts before the account is blocked
+  authTimeout: 1209600 # Number of seconds before disconnecting a user
+  certificate: "cert.pem"
+  privateKey: "key.pem"
