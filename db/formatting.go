@@ -58,7 +58,8 @@ func isRepoNameValid(name string) (bool, error) {
 			errors.New("the repository name must start with a letter")
 	}
 	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
+		if !unicode.IsLetter(r) && !unicode.IsNumber(r) &&
+		   r != '-' && r != '_' {
 			return false, 
 				errors.New("the repository name contains invalid characters")
 		}

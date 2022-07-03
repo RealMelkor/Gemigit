@@ -543,8 +543,7 @@ func main() {
 	})
 
 	if config.Cfg.Gemigit.AllowRegistration {
-		g.Handle("/register",
-		func(c gig.Context) error {
+		g.Handle("/register", func(c gig.Context) error {
 			cert := c.Certificate()
 			if cert == nil {
 				return c.NoContent(gig.StatusClientCertificateRequired,
@@ -576,13 +575,13 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest,
 						   "Invalid password received")
 			}
-			if password != "" {
+			if password == "" {
 				return c.NoContent(gig.StatusSensitiveInput, "Password")
 			}
 			if err = db.Register(c.Param("name"), password); err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			return c.Gemini("# Your registration was completed successfully\n" +
+			return c.Gemini("# Your registration was completed successfully\n\n" +
 					"=> /login Login now")
 		})
 	}
