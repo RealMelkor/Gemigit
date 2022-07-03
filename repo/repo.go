@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
 var rootPath string
@@ -27,6 +28,18 @@ func RemoveRepo(name string, username string) error {
 	return os.RemoveAll(rootPath + "/" + username + "/" + name)
 }
 
+func GetCommit(name string, username string, hash plumbing.Hash) (*object.Commit, error) {
+	repo, err := git.PlainOpen(rootPath + "/" + username + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := repo.CommitObject(hash)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
 func GetCommits(name string, username string) (object.CommitIter, error) {
 	repo, err := git.PlainOpen(rootPath + "/" + username + "/" + name)
 	if err != nil {
@@ -41,6 +54,22 @@ func GetCommits(name string, username string) (object.CommitIter, error) {
 		return nil, err
 	}
 	return cIter, nil
+}
+
+func GetRefs(name string, username string) (storer.ReferenceIter, error) {
+	repo, err := git.PlainOpen(rootPath + "/" + username + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+	_, err = repo.Head()
+	if err != nil {
+		return nil, nil // Empty repo
+	}
+	refs, err := repo.References()
+	if err != nil {
+		return nil, err
+	}
+	return refs, nil
 }
 
 func getTree(name string, username string) (*object.Tree, error) {

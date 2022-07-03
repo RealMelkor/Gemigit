@@ -1,14 +1,18 @@
 package main
 
 import (
+	"errors"
 	"gemigit/db"
 	"gemigit/repo"
 	"io"
 	"log"
 	"strconv"
+	"strings"
+	"fmt"
 
 	"gemigit/config"
 
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pitr/gig"
 )
@@ -66,6 +70,7 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		}
 		ret += "=>/account/repo/" + reponame + " Log\n"
 		ret += "=>/account/repo/" + reponame + "/files Files\n"
+		ret += "=>/account/repo/" + reponame + "/refs Refs\n"
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
 			ret += "=>/account/repo/" + reponame + "/license License\n"
@@ -77,6 +82,7 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 	} else {
 		ret += "\n=>/repo/" + user + "/" + reponame + " Log\n"
 		ret += "=>/repo/" + user + "/" + reponame + "/files Files\n"
+		ret += "=>/repo/" + user + "/" + reponame + "/refs Refs\n"
 		file, err := repo.GetFile(reponame, user, "LICENSE")
 		if file != nil && err == nil {
 			ret += "=>/repo/" + user + "/" + 
@@ -127,21 +133,66 @@ func showRepoCommits(user string, reponame string) (string, error) {
 		return "", err
 	}
 	ret := "\n## Commits\n\n"
-	if commits != nil {
-		err = commits.ForEach(func(c *object.Commit) error {
-			ret += "* " + c.Hash.String() + 
-				", by " + c.Author.Name +
-				" on " + c.Author.When.Format("2006-01-02 15:04:05") + 
-				"\n"
-			ret += "> " + c.Message + "\n"
-			return nil
-		})
-		if err != nil {
-			return "", err
-		}
-	} else {
-		ret += "Empty repository\n"
+	if commits == nil {
+		return ret + "Empty repository\n", nil
 	}
+	err = commits.ForEach(func(c *object.Commit) error {
+		ret += "* " + c.Hash.String() + 
+			", by " + c.Author.Name +
+			" on " + c.Author.When.Format("2006-01-02 15:04:05") + 
+			"\n"
+		ret += "> " + c.Message + "\n"
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return ret, nil
+}
+
+func showRepoRefs(user string, reponame string) (string, error) {
+	refs, err := repo.GetRefs(reponame, user)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+	ret := "\n## Refs\n\n"
+	if refs == nil {
+		return ret + "Empty repository\n", nil
+	}
+
+	ret += "### Branches\n\n"
+	tags := ""
+	err = refs.ForEach(func(c *plumbing.Reference) error {
+		if c.Type().String() != "hash-reference" || c.Name().IsRemote() {
+			return nil
+		}
+		name := c.Name().String()
+		name = name[strings.LastIndex(name, "/") + 1:]
+		line := "> " + name + ", last commit on "
+		
+		commit, err := repo.GetCommit(reponame, user, c.Hash())
+		if err != nil {
+			line += " failed to fetch commit\n"
+			return nil
+		} else {
+			when := commit.Author.When
+			str := fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d",
+				    when.Year(), int(when.Month()), when.Day(),
+				    when.Hour(), when.Minute(), when.Second())
+			line += str +
+				" by " + commit.Author.Name + "\n"
+		}
+		if !c.Name().IsBranch() {
+			tags += line
+		} else {
+			ret += line
+		}
+		return nil
+	})
+	refs.Close()
+
+	ret += "\n### Tags\n\n" + tags
 	return ret, nil
 }
 
@@ -203,10 +254,14 @@ func repoRequest(c gig.Context, param string, owner bool) error {
 		buf, err = showRepoCommits(username, c.Param("repo"))
 	case "files":
 		buf, err = showRepoFiles(username, c.Param("repo"), owner)
+	case "refs":
+		buf, err = showRepoRefs(username, c.Param("repo"))
 	case "license":
 		buf, err = showLicense(username, c.Param("repo"))
 	case "readme":
 		buf, err = showReadme(username, c.Param("repo"))
+	default:
+		err = errors.New("Unknown repository parameter")
 	}
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())

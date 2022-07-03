@@ -211,6 +211,10 @@ func main() {
 			return c.Gemini(file)
 		})
 
+		secure.Handle("/repo/:repo/refs", func(c gig.Context) error {
+			return repoRequest(c, "refs", true)
+		})
+
 		secure.Handle("/repo/:repo/license", func(c gig.Context) error {
 			return repoRequest(c, "license", true)
 		})
@@ -491,6 +495,10 @@ func main() {
 				file += strconv.Itoa(i) + " \t" + line + "\n"
 			}
 			return c.Gemini(file)
+		})
+
+		public.Handle("/:user/:repo/refs", func(c gig.Context) error {
+			return repoRequest(c, "refs", false)
 		})
 
 		public.Handle("/:user/:repo/license", func(c gig.Context) error {
