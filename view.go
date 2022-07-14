@@ -192,7 +192,9 @@ func showRepoRefs(user string, reponame string) (string, error) {
 	})
 	refs.Close()
 
-	ret += "\n### Tags\n\n" + tags
+	if tags != "" {
+		ret += "\n### Tags\n\n" + tags
+	}
 	return ret, nil
 }
 
