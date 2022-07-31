@@ -244,6 +244,12 @@ func repoRequest(c gig.Context, param string, owner bool) error {
 		username = user.Name
 	} else {
 		username = c.Param("user")
+		ret, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
+		if !ret || err != nil {
+			return c.NoContent(gig.StatusBadRequest,
+				"No repository called " + c.Param("repo") +
+				" by user " + c.Param("user"))
+		}
 	}
 	ret, err := showRepoHeader(username, c.Param("repo"), owner)
 	if err != nil {
