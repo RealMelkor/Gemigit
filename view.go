@@ -75,7 +75,10 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 		if file != nil && err == nil {
 			ret += "=>/account/repo/" + reponame + "/license License\n"
 		}
-		file, err = repo.GetFile(reponame, user, "README")
+		file, err = repo.GetFile(reponame, user, "README.gmi")
+		if file == nil || err != nil {
+			file, err = repo.GetFile(reponame, user, "README")
+		}
 		if file != nil && err == nil {
 			ret += "=>/account/repo/" + reponame + "/readme Readme\n"
 		}
@@ -88,7 +91,10 @@ func showRepoHeader(user string, reponame string, owner bool) (string, error) {
 			ret += "=>/repo/" + user + "/" + 
 				reponame + "/license License\n"
 		}
-		file, err = repo.GetFile(reponame, user, "README")
+		file, err = repo.GetFile(reponame, user, "README.gmi")
+		if file == nil || err != nil {
+			file, err = repo.GetFile(reponame, user, "README")
+		}
 		if file != nil && err == nil {
 			ret += "=>/repo/" + user + "/" + 
 				reponame + "/readme Readme\n"
@@ -226,7 +232,10 @@ func showLicense(user string, reponame string) (string, error) {
 
 func showReadme(user string, reponame string) (string, error) {
 	ret := "\n## Readme\n\n"
-	file, err := showRepoFile(user, reponame, "README")
+	file, err := showRepoFile(user, reponame, "README.gmi")
+	if err != nil {
+		file, err = showRepoFile(user, reponame, "README")
+	}
 	if err != nil {
 		return "", err
 	}
