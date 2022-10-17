@@ -12,17 +12,9 @@ var clientAttempts = make(map[string]int)
 
 func Decrease() {
 	for {
-		for k, v := range userAttempts {
-			if v > 0 {
-				userAttempts[k]--
-			}
-		}
-		for k, v := range clientAttempts {
-			if v > 0 {
-				clientAttempts[k]--
-			}
-		}
-		time.Sleep(30 * time.Second)
+		userAttempts = make(map[string]int)
+		clientAttempts = make(map[string]int)
+		time.Sleep(time.Duration(config.Cfg.Protection.Reset) * time.Second)
 		db.DisconnectTimeout()
 	}
 }
@@ -30,7 +22,7 @@ func Decrease() {
 func Connect(username string, password string, signature string, ip string) error {
 	attempts, b := userAttempts[username]
 	if b {
-		if attempts < config.Cfg.Gemigit.MaxAttemptsForAccount {
+		if attempts < config.Cfg.Protection.Account {
 			userAttempts[username]++
 		} else {
 			return errors.New("the account is locked, " + 
@@ -41,7 +33,7 @@ func Connect(username string, password string, signature string, ip string) erro
 	}
 	attempts, b = clientAttempts[ip]
 	if b {
-		if attempts < config.Cfg.Gemigit.MaxAttemptsForIP {
+		if attempts < config.Cfg.Protection.Ip {
 			clientAttempts[ip]++
 		} else {
 			return errors.New("too many connections attempts")

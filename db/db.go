@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"gemigit/access"
 	"gemigit/config"
 	"log"
 	"os"
@@ -59,9 +60,12 @@ func (user *User) repoAlreadyExist(repo string) (bool, error) {
 }
 
 func DisconnectTimeout() {
+	if config.Cfg.Users.Session == 0 {
+		return
+	}
 	for k, v := range users {
 		if time.Now().Unix()-v.Connection.Unix() >
-		   int64(config.Cfg.Gemigit.AuthTimeout) {
+		   int64(config.Cfg.Users.Session) {
 			delete(users, k)
 		}
 	}
@@ -101,33 +105,72 @@ func Close() error {
 }
 
 func createTable(db *sql.DB) error {
-	createUserTable := `CREATE TABLE user (
-		"userID" integer NOT NULL PRIMARY KEY AUTOINCREMENT,		
-		"name" TEXT UNIQUE,
+	userTable := `CREATE TABLE user (
+		"userID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		"name" TEXT UNIQUE NOT NULL,
 		"password" TEXT,
 		"description" TEXT DEFAULT "",
-		"creation" INTEGER		
-	  );`
-
-	createRepoTable := `CREATE TABLE repo (
-		"repoID" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"userID" integer,
-		"name" TEXT,
-		"description" TEXT DEFAULT "",
-		"creation" INTEGER,
-		"public" INTEGER DEFAULT 0	
+		"creation" INTEGER NOT NULL
 	);`
 
-	_, err := db.Exec(createUserTable)
+	groupTable := `CREATE TABLE groups (
+		"groupID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		"name" TEXT UNIQUE NOT NULL,
+		"description" TEXT DEFAULT "",
+		"creation" INTEGER NOT NULL
+	);`
+
+	memberTable := `CREATE TABLE member (
+		"groupID" INTEGER NOT NULL,
+		"userID" INTEGER NOT NULL
+	);`
+
+	accessTable := `CREATE TABLE access (
+		"repoID" INTEGER NOT NULL,
+		"groupID" INTEGER,
+		"userID" INTEGER,
+		"privilege" INTEGER NOT NULL
+	);`
+
+	repoTable := `CREATE TABLE repo (
+		"repoID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		"userID" INTEGER NOT NULL,
+		"name" TEXT NOT NULL,
+		"description" TEXT DEFAULT "",
+		"creation" INTEGER NOT NULL,
+		"public" INTEGER DEFAULT 0
+	);`
+
+	_, err := db.Exec(userTable)
 	if err != nil {
 		return err
 	}
 	log.Println("Users table created")
-	_, err = db.Exec(createRepoTable)
+
+	_, err = db.Exec(groupTable)
+	if err != nil {
+		return err
+	}
+	log.Println("Groups table created")
+
+	_, err = db.Exec(memberTable)
+	if err != nil {
+		return err
+	}
+	log.Println("Member table created")
+
+	_, err = db.Exec(accessTable)
+	if err != nil {
+		return err
+	}
+	log.Println("Access table created")
+
+	_, err = db.Exec(repoTable)
 	if err != nil {
 		return err
 	}
 	log.Println("Repositories table created")
+
 	return nil
 }
 
@@ -153,23 +196,48 @@ func CheckAuth(username string, password string) (bool, error) {
 }
 
 func Login(username string, password string, signature string) (bool, error) {
-	rows, err := db.Query("select userID, name, description, creation, password" +
-			      " from user WHERE UPPER(name) LIKE UPPER(?)", username)
+	if config.Cfg.Ldap.Enabled {
+		if err := access.Login(username, password); err != nil {
+			return false, err
+		}
+	}
+	var query string
+	if config.Cfg.Ldap.Enabled {
+		query = "select userID, name, description, creation" +
+			" from user WHERE UPPER(name) LIKE UPPER(?)"
+	} else {
+		query = "select userID, name, description, creation, password" +
+			" from user WHERE UPPER(name) LIKE UPPER(?)"
+	}
+	rows, err := db.Query(query, username)
 	if err != nil {
 		return false, err
 	}
 	defer rows.Close()
-	if rows.Next() {
+	next := rows.Next()
+	if !next && config.Cfg.Ldap.Enabled {
+		Register(username, "")
+		rows, err = db.Query(query, username)
+		if err != nil {
+			return false, err
+		}
+		next = rows.Next()
+	}
+	if next {
 		var dID int
 		var dName string
 		var dDescription string
 		var dCreation int
 		var dPassword string
-		err = rows.Scan(&dID, &dName, &dDescription, &dCreation, &dPassword)
+		if config.Cfg.Ldap.Enabled {
+			err = rows.Scan(&dID, &dName, &dDescription, &dCreation)
+		} else {
+			err = rows.Scan(&dID, &dName, &dDescription, &dCreation, &dPassword)
+		}
 		if err != nil {
 			return false, err
 		}
-		if checkPassword(password, dPassword) {
+		if config.Cfg.Ldap.Enabled || checkPassword(password, dPassword) {
 			users[signature] = User{ID: dID, Name: dName,
 						Description: dDescription,
 						Registration: dCreation,
@@ -183,8 +251,10 @@ func Login(username string, password string, signature string) (bool, error) {
 
 func Register(username string, password string) error {
 
-	if isValid, err := isPasswordValid(password); !isValid {
-		return err
+	if !config.Cfg.Ldap.Enabled {
+		if isValid, err := isPasswordValid(password); !isValid {
+			return err
+		}
 	}
 
 	if isValid, err := isNameValid(username); !isValid {
@@ -198,17 +268,24 @@ func Register(username string, password string) error {
 		return errors.New("this name is already taken")
 	}
 
-	hash, err := hashPassword(password)
+	if !config.Cfg.Ldap.Enabled {
+		hash, err := hashPassword(password)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec("insert into user(name,password,creation) " +
+				 "VALUES(?,?,strftime('%s', 'now'));", username, hash)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	_, err := db.Exec("insert into user(name,creation) " +
+			  "VALUES(?,strftime('%s', 'now'));", username)
 	if err != nil {
 		return err
 	}
-
-	_, err = db.Exec("insert into user(name,password,creation) " +
-			 "VALUES(?,?,strftime('%s', 'now'));", username, hash)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -241,7 +318,7 @@ func (user User) CreateRepo(repo string, signature string) error {
 func DeleteUser(username string) error {
 	statement, err := db.Exec("delete FROM repo " +
 				  "WHERE userID in " +
-				  "( SELECT userID from user " +
+				  "(SELECT userID from user " +
 				  "where UPPER(name) LIKE UPPER(?))", username)
 	if err != nil {
 		return err

@@ -19,12 +19,12 @@ import (
 
 func getHttpAddress(user string, repo string) string {
 	ret := "git clone "
-	if config.Cfg.Gemigit.Https {
+	if config.Cfg.Git.Https {
 		ret += "https://"
 	} else {
 		ret += "http://"
 	}
-	ret += config.Cfg.Gemigit.Domain + "/" + user + "/" + repo + "\n"
+	ret += config.Cfg.Git.Domain + "/" + user + "/" + repo + "\n"
 	return ret
 }
 

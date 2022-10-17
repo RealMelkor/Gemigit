@@ -7,8 +7,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
 	"golang.org/x/crypto/ssh/terminal"
 
+	"gemigit/access"
 	"gemigit/auth"
 	"gemigit/config"
 	"gemigit/db"
@@ -22,6 +24,9 @@ import (
 func main() {
 
 	if err := config.LoadConfig(); err != nil {
+		log.Fatalln(err.Error())
+	}
+	if err := access.Init(); err != nil {
 		log.Fatalln(err.Error())
 	}
 
@@ -38,7 +43,7 @@ func main() {
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
-			err = db.Init(config.Cfg.Gemigit.Database)
+			err = db.Init(config.Cfg.Database)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -61,7 +66,7 @@ func main() {
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
-			err = db.Init(config.Cfg.Gemigit.Database)
+			err = db.Init(config.Cfg.Database)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -77,7 +82,7 @@ func main() {
 				fmt.Println(os.Args[0] + " rmuser <username>")
 				return
 			}
-			err := db.Init(config.Cfg.Gemigit.Database)
+			err := db.Init(config.Cfg.Database)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -99,7 +104,7 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	err := db.Init(config.Cfg.Gemigit.Database)
+	err := db.Init(config.Cfg.Database)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -108,7 +113,7 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	go httpgit.Listen("repos/", config.Cfg.Gemigit.Port)
+	go httpgit.Listen("repos/", config.Cfg.Git.Port)
 	go auth.Decrease()
 
 	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | " +
@@ -116,6 +121,7 @@ func main() {
 					 "Latency=${latency}\n"
 	g := gig.Default()
 	g.Use(gig.Recover())
+	g.Static("/static", "./static")
 
 	secure := g.Group("/account", gig.PassAuth(
 	func(sig string, c gig.Context) (string, error) {
@@ -144,11 +150,12 @@ func main() {
 			} else {
 				ret += "\n"
 			}
-			ret +=
-			"=>/account/addrepo Create a new repository\n" +
-			"=>/account/chdesc Change your account description\n" +
-			"=>/account/chpasswd Change your password\n" +
-			"=>/account/disconnect Disconnect\n" +
+			ret += "=>/account/addrepo Create a new repository\n" +
+			"=>/account/chdesc Change your account description\n"
+			if !config.Cfg.Ldap.Enabled {
+				ret += "=>/account/chpasswd Change your password\n"
+			}
+			ret += "=>/account/disconnect Disconnect\n" +
 			"\n## Repositories list\n\n"
 
 			repos, err := user.GetRepos(false)
@@ -398,6 +405,7 @@ func main() {
 					   "/account")
 		})
 
+		if !config.Cfg.Ldap.Enabled {
 		secure.Handle("/chpasswd", func(c gig.Context) error {
 			passwd, err := c.QueryString()
 			if err != nil {
@@ -420,6 +428,7 @@ func main() {
 			return c.NoContent(gig.StatusRedirectTemporary,
 					   "/account")
 		})
+		}
 
 		secure.Handle("/disconnect", func(c gig.Context) error {
 			user, exist := db.GetUser(c.CertHash())
@@ -542,7 +551,7 @@ func main() {
 		return "/account", nil
 	})
 
-	if config.Cfg.Gemigit.AllowRegistration {
+	if config.Cfg.Users.Registration {
 		g.Handle("/register", func(c gig.Context) error {
 			cert := c.Certificate()
 			if cert == nil {
@@ -590,13 +599,13 @@ func main() {
 		_, connected := db.GetUser(c.CertHash())
 		ret := ""
 		if !connected {
-			ret = "# " + config.Cfg.Gemigit.Name + "\n\n"
+			ret = "# " + config.Cfg.Title + "\n\n"
 			ret += "=> /login Login\n"
-			if config.Cfg.Gemigit.AllowRegistration {
+			if config.Cfg.Users.Registration {
 				ret += "=> /register Register\n"
 			}
 		} else {
-			ret = "# " + config.Cfg.Gemigit.Name + "\n\n" +
+			ret = "# " + config.Cfg.Title + "\n\n" +
 			      "=> /account Account page\n"
 		}
 		ret += "=> /repo Public repositories"

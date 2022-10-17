@@ -1,12 +1,24 @@
-gemigit:
+title: "Gemigit" # title on the main page
+database: "gemigit.db" # sqlite3 database file
+certificate: "cert.pem" # SSL certificate
+key: "key.pem" # private key
+
+git:
   https: true # show https instead of http in the repo page (when using a reverse proxy)
+  domain: "mydomain.com" # domain for the http git request
   port: 5555 # bind port for http git request
-  name: "Gemigit" # Title on the main page
-  domain: "mydomain.com" # Domain for the http git request
-  allowRegistration: true
-  database: "gemigit.db" # sqlite3 database file
-  maxAttemptsForIp: 10 # Maximum connection attempts before the ip is blocked
-  maxAttemptsForAccount: 30 # Maximum connection attempts before the account is blocked
-  authTimeout: 1209600 # Number of seconds before disconnecting a user
-  certificate: "cert.pem"
-  privateKey: "key.pem"
+
+ldap:
+  enabled: true # logging using ldap credential
+  url: "ldaps://ldap.mydomain.com" # url to the ldap server
+  attribute: "cn" # attribute associated with the username
+  binding: "ou=users,dc=mydomain,dc=com"
+
+users:
+  registration: true # allow registration, will be disabled if ldap is enabled
+  session: 0 # Number of seconds before disconnecting a user, 0 = never
+
+protection:
+  ip: 10 # Maximum connection attempts before the ip is blocked
+  account: 30 # Maximum connection attempts before the account is blocked
+  reset: 120 # Number of seconds before clearing the block on ip/accounts
