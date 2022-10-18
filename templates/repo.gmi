@@ -1,0 +1,75 @@
+{{ if .Owner -}}
+=>/account Go back
+
+# {{ .Repo }}
+{{ else -}}
+=>/repo Go back
+
+# {{ .Repo }} by {{ .User }}
+=>/repo/{{.User}} View account
+{{ end -}}
+{{if .Description -}}
+> {{ .Description }}
+{{end -}}
+> git clone {{ .Protocol }}://{{ .Domain }}/{{ .User }}/{{ .Repo }}
+{{if .Owner}}
+=>/account/repo/{{.Repo}}/chname Change repository name
+=>/account/repo/{{.Repo}}/chdesc Change repository description
+=>/account/repo/{{.Repo}}/delrepo Delete repository
+=>/account/repo/{{.Repo}}/togglepublic Make the repository {{if .Public}}private{{else}}public {{end }}
+{{end}}
+=>{{if .Owner}}/account/repo{{else}}/repo/{{.User}}{{end}}/{{.Repo}} Log
+=>{{if .Owner}}/account/repo{{else}}/repo/{{.User}}{{end}}/{{.Repo}}/files Files
+=>{{if .Owner}}/account/repo{{else}}/repo/{{.User}}{{end}}/{{.Repo}}/refs Refs
+{{ if .HasLicense -}}
+=>{{if .Owner}}/account/repo{{else}}/repo/{{.User}}{{end}}/{{.Repo}}/license License
+{{ end -}}
+{{ if .HasReadme -}}
+=>{{if .Owner}}/account/repo{{else}}/repo/{{.User}}{{end}}/{{.Repo}}/readme Readme
+{{ end }}
+{{ if .Log -}}
+## Commits
+
+{{ range .Commits -}} 
+> {{ .Info }}
+* {{ .Message }}
+{{ end }}
+{{- end -}}
+{{ if .Files -}}
+## Files
+
+{{ range .FileList -}} 
+=>files/{{.Hash}} {{.Info}}
+{{ end -}}
+{{ end -}}
+{{ if .Refs -}}
+## Refs
+
+{{ if .Empty}}
+{{- else -}}
+### Branches
+
+{{ range .Branches -}} 
+* {{.Name}}, {{.Info}}
+{{- end }}
+
+### Tags
+
+{{ range .Tags -}} 
+* {{.Name}}, {{.Info}}
+{{ end -}}
+{{ end -}}
+{{ end -}}
+{{ if .Readme -}}
+## Readme
+
+{{ .Content }}
+{{ end -}}
+{{ if .License -}}
+## License
+
+{{ .Content }}
+{{ end -}}
+{{- if .Empty -}}
+Empty repository
+{{- end }}

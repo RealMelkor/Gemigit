@@ -10,15 +10,15 @@ type Config struct {
 	Certificate	string `validate:"required"`
 	Key		string `validate:"required"`
 	Git struct {
-		Https	bool	`validate:"required"`
+		Https	bool
 		Domain	string	`validate:"required"`
 		Port	int	`validate:"required"`
 	}
 	Ldap struct {
 		Enabled		bool	//`validate:"required"`
-		Url		string	`validate:"required"`
-		Attribute	string	`validate:"required"`
-		Binding		string	`validate:"required"`
+		Url		string	//`validate:"required"`
+		Attribute	string	//`validate:"required"`
+		Binding		string	//`validate:"required"`
 	}
 	Users struct {
 		Registration	bool   `validate:"required"`

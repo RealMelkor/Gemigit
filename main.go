@@ -21,6 +21,21 @@ import (
 	"github.com/pitr/gig"
 )
 
+func showFileContent(content string) string {
+	lines := strings.Split(content, "\n")
+	file := ""
+	for i, line := range lines {
+		number := strconv.Itoa(i)
+		space := 6 - len(number)
+		if space < 1 {
+			space = 1
+		} 
+		file += number + strings.Repeat(" ", space)
+		file += line + "\n"
+	}
+	return strings.Replace(file, "%", "%%", -1)
+}
+
 func main() {
 
 	if err := config.LoadConfig(); err != nil {
@@ -104,6 +119,10 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	if err := loadTemplate(); err != nil {
+		log.Fatalln(err.Error())
+	}
+
 	err := db.Init(config.Cfg.Database)
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -133,6 +152,7 @@ func main() {
 	}))
 	{
 		secure.Handle("", func(c gig.Context) error {
+			/*
 			user, exist := db.GetUser(c.CertHash())
 			if !exist {
 				return c.NoContent(gig.StatusBadRequest,
@@ -170,6 +190,8 @@ func main() {
 			}
 
 			return c.Gemini(ret)
+			*/
+			return showAccount(c)
 		})
 
 		secure.Handle("/repo/:repo/files", func(c gig.Context) error {
@@ -183,7 +205,7 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
 			if query == "" {
-				return repoRequest(c, "files", true)
+				return showRepo(c, "files", true)
 			}
 			repofile, err := repo.GetFile(c.Param("repo"), user.Name, query)
 			if err != nil {
@@ -210,24 +232,19 @@ func main() {
 				return c.NoContent(gig.StatusBadRequest,
 						   err.Error())
 			}
-			lines := strings.Split(content, "\n")
-			file := ""
-			for i, line := range lines {
-				file += strconv.Itoa(i) + " \t" + line + "\n"
-			}
-			return c.Gemini(file)
+			return c.Gemini(showFileContent(content))
 		})
 
 		secure.Handle("/repo/:repo/refs", func(c gig.Context) error {
-			return repoRequest(c, "refs", true)
+			return showRepo(c, "refs", true)
 		})
 
 		secure.Handle("/repo/:repo/license", func(c gig.Context) error {
-			return repoRequest(c, "license", true)
+			return showRepo(c, "license", true)
 		})
 
 		secure.Handle("/repo/:repo/readme", func(c gig.Context) error {
-			return repoRequest(c, "readme", true)
+			return showRepo(c, "readme", true)
 		})
 
 		secure.Handle("/repo/:repo/*", func(c gig.Context) error {
@@ -255,7 +272,7 @@ func main() {
 		})
 
 		secure.Handle("/repo/:repo", func(c gig.Context) error {
-			return repoRequest(c, "", true)
+			return showRepo(c, "", true)
 		})
 
 		secure.Handle("/repo/:repo/togglepublic", func(c gig.Context) error {
@@ -488,7 +505,7 @@ func main() {
 		})
 
 		public.Handle("/:user/:repo/files", func(c gig.Context) error {
-			return repoRequest(c, "files", false)
+			return showRepo(c, "files", false)
 		})
 
 		public.Handle("/:user/:repo/files/:blob", func(c gig.Context) error {
@@ -498,28 +515,23 @@ func main() {
 			if err != nil {
 				return c.NoContent(gig.StatusBadRequest, err.Error())
 			}
-			lines := strings.Split(content, "\n")
-			file := ""
-			for i, line := range lines {
-				file += strconv.Itoa(i) + " \t" + line + "\n"
-			}
-			return c.Gemini(file)
+			return c.Gemini(showFileContent(content))
 		})
 
 		public.Handle("/:user/:repo/refs", func(c gig.Context) error {
-			return repoRequest(c, "refs", false)
+			return showRepo(c, "refs", false)
 		})
 
 		public.Handle("/:user/:repo/license", func(c gig.Context) error {
-			return repoRequest(c, "license", false)
+			return showRepo(c, "license", false)
 		})
 
 		public.Handle("/:user/:repo/readme", func(c gig.Context) error {
-			return repoRequest(c, "readme", false)
+			return showRepo(c, "readme", false)
 		})
 
 		public.Handle("/:user/:repo", func(c gig.Context) error {
-			return repoRequest(c, "", false)
+			return showRepo(c, "", false)
 		})
 
 		public.Handle("/:user/:repo/*", func(c gig.Context) error {
@@ -596,6 +608,7 @@ func main() {
 	}
 
 	g.Handle("/", func(c gig.Context) error {
+		/*
 		_, connected := db.GetUser(c.CertHash())
 		ret := ""
 		if !connected {
@@ -609,7 +622,8 @@ func main() {
 			      "=> /account Account page\n"
 		}
 		ret += "=> /repo Public repositories"
-		return c.Gemini(ret)
+		*/
+		return showIndex(c)
 	})
 
 	err = g.Run("cert.pem", "key.pem")

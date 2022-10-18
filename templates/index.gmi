@@ -1,0 +1,11 @@
+# {{ .Title }}
+
+{{ if .Connected -}}
+=>/account Account page
+{{ else -}}
+=>/login Login
+{{ if .Registration -}}
+=>/register Register
+{{ end -}}
+{{ end -}}
+=>/repo Public repositories

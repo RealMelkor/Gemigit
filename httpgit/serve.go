@@ -1,6 +1,8 @@
 package httpgit
 
 import (
+	"gemigit/access"
+	"gemigit/config"
 	"gemigit/db"
 	"log"
 	"net/http"
@@ -78,18 +80,27 @@ func basicAuth(next http.Handler) http.Handler {
 				return
 			}
 		}
+
 		username, password, ok := r.BasicAuth()
 		if !ok {
 			renderUnauthorized(w)
 			return
 		}
-		ok, err := db.CheckAuth(username, password)
-		if err != nil {
-			log.Println(err.Error())
-		}
-		if !ok || err != nil {
-			renderUnauthorized(w)
-			return
+		if config.Cfg.Ldap.Enabled {
+			if err := access.Login(username, password); err != nil {
+				log.Println(err.Error())
+				renderUnauthorized(w)
+				return
+			}
+		} else {
+			ok, err := db.CheckAuth(username, password)
+			if err != nil {
+				log.Println(err.Error())
+			}
+			if !ok || err != nil {
+				renderUnauthorized(w)
+				return
+			}
 		}
 		next.ServeHTTP(w, r)
 	})

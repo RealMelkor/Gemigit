@@ -1,288 +1,353 @@
 package main
 
 import (
-	"errors"
-	"gemigit/db"
-	"gemigit/repo"
+	"bytes"
 	"io"
-	"log"
+	"fmt"
 	"strconv"
 	"strings"
-	"fmt"
-
 	"gemigit/config"
+	"gemigit/db"
+	"gemigit/repo"
+	"log"
+	"text/template"
 
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pitr/gig"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
-func getHttpAddress(user string, repo string) string {
-	ret := "git clone "
-	if config.Cfg.Git.Https {
-		ret += "https://"
-	} else {
-		ret += "http://"
-	}
-	ret += config.Cfg.Git.Domain + "/" + user + "/" + repo + "\n"
-	return ret
-}
+const (
+	pageLog = iota
+	pageFiles
+	pageRefs
+	pageLicense
+	pageReadme
+)
 
-func showRepoHeader(user string, reponame string, owner bool) (string, error) {
-	ret := ""
-	if owner {
-		ret += "=>/account Go back\n\n"
-	} else {
-		ret += "=>/repo Go back\n\n"
-	}
-	ret += "# " + reponame
-	if !owner {
-		ret += " by " + user + "\n=>/repo/" + user + " View account\n"
-	} else {
-		ret += "\n"
-	}
-	desc, err := db.GetRepoDesc(reponame, user)
+var mainPage *template.Template
+var accountPage *template.Template
+var repoPage *template.Template
+
+func loadTemplate() error {
+	var err error
+	mainPage, err = template.ParseFiles("templates/index.gmi")
 	if err != nil {
-		return "", err
+		return err
 	}
-	if desc != "" {
-		ret += "> " + desc + "\n"
-	}
-	ret += "> " + getHttpAddress(user, reponame)
-	if owner {
-		ret += "\n" +
-		"=>/account/repo/" + reponame + 
-		"/chname Change repository name\n" +
-		"=>/account/repo/" + reponame + 
-		"/chdesc Change repository description\n" +
-		"=>/account/repo/" + reponame + 
-		"/delrepo Delete repository\n" +
-		"=>/account/repo/" + reponame + 
-		"/togglepublic Make the repository "
-		b, err := db.IsRepoPublic(reponame, user)
-		if err != nil {
-			return "", err
-		}
-		if b {
-			ret += "private\n\n"
-		} else {
-			ret += "public\n\n"
-		}
-		ret += "=>/account/repo/" + reponame + " Log\n"
-		ret += "=>/account/repo/" + reponame + "/files Files\n"
-		ret += "=>/account/repo/" + reponame + "/refs Refs\n"
-		file, err := repo.GetFile(reponame, user, "LICENSE")
-		if file != nil && err == nil {
-			ret += "=>/account/repo/" + reponame + "/license License\n"
-		}
-		file, err = repo.GetFile(reponame, user, "README.gmi")
-		if file == nil || err != nil {
-			file, err = repo.GetFile(reponame, user, "README")
-		}
-		if file != nil && err == nil {
-			ret += "=>/account/repo/" + reponame + "/readme Readme\n"
-		}
-	} else {
-		ret += "\n=>/repo/" + user + "/" + reponame + " Log\n"
-		ret += "=>/repo/" + user + "/" + reponame + "/files Files\n"
-		ret += "=>/repo/" + user + "/" + reponame + "/refs Refs\n"
-		file, err := repo.GetFile(reponame, user, "LICENSE")
-		if file != nil && err == nil {
-			ret += "=>/repo/" + user + "/" + 
-				reponame + "/license License\n"
-		}
-		file, err = repo.GetFile(reponame, user, "README.gmi")
-		if file == nil || err != nil {
-			file, err = repo.GetFile(reponame, user, "README")
-		}
-		if file != nil && err == nil {
-			ret += "=>/repo/" + user + "/" + 
-				reponame + "/readme Readme\n"
-		}
-	}
-
-	return ret, nil
-}
-
-func showRepoFiles(user string, reponame string, owner bool) (string, error) {
-	files, err := repo.GetFiles(reponame, user)
+	accountPage, err = template.ParseFiles("templates/account.gmi")
 	if err != nil {
-		log.Println(err.Error())
+		return err
 	}
-	ret := "\n## Files\n\n"
-	if files != nil {
-		err = files.ForEach(func(f *object.File) error {
-			if owner {
-				ret += "=>/account/repo/"
-			} else {
-				ret += "=>/repo/" + user + "/"
-			}
-			ret += reponame + "/files/" + 
-			       f.Blob.Hash.String() + " " + 
-			       f.Mode.String() + " " + 
-			       f.Name + " " + 
-			       strconv.Itoa(int(f.Size)) + "\n"
-			return nil
-		})
-		if err != nil {
-			return "", err
-		}
-	} else {
-		ret += "Empty repository\n"
-	}
-	return ret, nil
-}
-
-func showRepoCommits(user string, reponame string) (string, error) {
-	commits, err := repo.GetCommits(reponame, user)
+	repoPage, err = template.ParseFiles("templates/repo.gmi")
 	if err != nil {
-		return "", err
+		return err
 	}
-	ret := "\n## Commits\n\n"
-	if commits == nil {
-		return ret + "Empty repository\n", nil
-	}
-	err = commits.ForEach(func(c *object.Commit) error {
-		ret += "* " + c.Hash.String() + 
-			", by " + c.Author.Name +
-			" on " + c.Author.When.Format("2006-01-02 15:04:05") + 
-			"\n"
-		ret += "> " + c.Message + "\n"
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	return ret, nil
-}
-
-func showRepoRefs(user string, reponame string) (string, error) {
-	refs, err := repo.GetRefs(reponame, user)
-	if err != nil {
-		log.Println(err)
-		return "", err
-	}
-	ret := "\n## Refs\n\n"
-	if refs == nil {
-		return ret + "Empty repository\n", nil
-	}
-
-	ret += "### Branches\n\n"
-	tags := ""
-	err = refs.ForEach(func(c *plumbing.Reference) error {
-		if c.Type().String() != "hash-reference" || c.Name().IsRemote() {
-			return nil
-		}
-		name := c.Name().String()
-		name = name[strings.LastIndex(name, "/") + 1:]
-		line := "> " + name + ", last commit on "
-		
-		commit, err := repo.GetCommit(reponame, user, c.Hash())
-		if err != nil {
-			line += " failed to fetch commit\n"
-			return nil
-		} else {
-			when := commit.Author.When
-			str := fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d",
-				    when.Year(), int(when.Month()), when.Day(),
-				    when.Hour(), when.Minute(), when.Second())
-			line += str +
-				" by " + commit.Author.Name + "\n"
-		}
-		if !c.Name().IsBranch() {
-			tags += line
-		} else {
-			ret += line
-		}
-		return nil
-	})
-	refs.Close()
-
-	if tags != "" {
-		ret += "\n### Tags\n\n" + tags
-	}
-	return ret, nil
+	log.Println("Templates loaded")
+	return nil
 }
 
 func showRepoFile(user string, reponame string, file string) (string, error) {
-	out, err := repo.GetFile(reponame, user, file)
-	if err != nil {
-		return "", err
-	}
-	reader, err := out.Reader()
-	if err != nil {
-		return "", err
-	}
-	buf, err := io.ReadAll(reader)
-	if err != nil {
-		return "", err
-	}
-	return string(buf), nil
+        out, err := repo.GetFile(reponame, user, file)
+        if err != nil {
+                return "", err
+        }
+        reader, err := out.Reader()
+        if err != nil {
+                return "", err
+        }
+        buf, err := io.ReadAll(reader)
+        if err != nil {
+                return "", err
+        }
+        return string(buf), nil
 }
 
-func showLicense(user string, reponame string) (string, error) {
-	ret := "\n## License\n\n"
-	file, err := showRepoFile(user, reponame, "LICENSE")
-	if err != nil {
-		return "", err
+func showIndex(c gig.Context) (error) {
+	_, connected := db.GetUser(c.CertHash())
+	data := struct {
+		Title string
+		Registration bool
+		Connected bool
+	}{
+		Title: config.Cfg.Title,
+		Registration: config.Cfg.Users.Registration,
+		Connected: connected,
 	}
-	ret += file
-	return ret, nil
+	var b bytes.Buffer
+	err := mainPage.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
 }
 
-func showReadme(user string, reponame string) (string, error) {
-	ret := "\n## Readme\n\n"
-	file, err := showRepoFile(user, reponame, "README.gmi")
-	if err != nil {
-		file, err = showRepoFile(user, reponame, "README")
+func showAccount(c gig.Context) (error) {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest,
+				   "Invalid username")
 	}
+	repoNames := []string{}
+	repos, err := user.GetRepos(false)
 	if err != nil {
-		return "", err
-	}
-	ret += file
-	return ret, nil
-}
-
-func repoRequest(c gig.Context, param string, owner bool) error {
-	username := ""
-	if owner {
-		user, exist := db.GetUser(c.CertHash())
-		if !exist {
-			return c.NoContent(gig.StatusBadRequest, "Invalid username")
-		}
-		username = user.Name
+		repoNames = []string{"Failed to load repositories"}
+		log.Println(err)
 	} else {
-		username = c.Param("user")
-		ret, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
-		if !ret || err != nil {
-			return c.NoContent(gig.StatusBadRequest,
-				"No repository called " + c.Param("repo") +
-				" by user " + c.Param("user"))
+		for _, repo := range repos {
+			repoNames = append(repoNames, repo.Name)
 		}
 	}
-	ret, err := showRepoHeader(username, c.Param("repo"), owner)
-	if err != nil {
-		return c.NoContent(gig.StatusBadRequest, err.Error())
+	data := struct {
+		Username string
+		Description string
+		Repositories []string
+	}{
+		Username: user.Name,
+		Description: user.Description,
+		Repositories: repoNames,
 	}
+	var b bytes.Buffer
+	err = accountPage.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
 
-	var buf string
+}
+
+func getRepo(c gig.Context, owner bool) (string, string, error) {
+        username := ""
+        if owner {
+                user, exist := db.GetUser(c.CertHash())
+                if !exist {
+                        return "", "",
+				c.NoContent(gig.StatusBadRequest, "Invalid username")
+                }
+                username = user.Name
+        } else {
+                username = c.Param("user")
+                ret, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
+                if !ret || err != nil {
+                        return "", "", c.NoContent(gig.StatusBadRequest,
+                                "No repository called " + c.Param("repo") +
+                                " by user " + c.Param("user"))
+                }
+        }
+	return username, c.Param("repo"), nil
+}
+
+func hasFile(name string, author string, file string) bool {
+	ret, err := repo.GetFile(name, author, file)
+	if ret != nil && err == nil {
+		return true
+	} 
+	return false
+}
+
+type commit struct {
+	Message string
+	Info string
+}
+
+type file struct {
+	Hash string
+	Info string
+}
+
+type branch struct {
+	Name string
+	Info string
+}
+
+func getPage(param string) (int) {
 	switch param {
 	case "":
-		buf, err = showRepoCommits(username, c.Param("repo"))
+		return pageLog
 	case "files":
-		buf, err = showRepoFiles(username, c.Param("repo"), owner)
+		return pageFiles
 	case "refs":
-		buf, err = showRepoRefs(username, c.Param("repo"))
-	case "license":
-		buf, err = showLicense(username, c.Param("repo"))
+		return pageRefs
 	case "readme":
-		buf, err = showReadme(username, c.Param("repo"))
-	default:
-		err = errors.New("Unknown repository parameter")
+		return pageReadme
+	case "license":
+		return pageLicense
 	}
+	return -1;
+}
+
+func showRepo(c gig.Context, param string, owner bool) (error) {
+	author, name, err := getRepo(c, owner)
 	if err != nil {
-		return c.NoContent(gig.StatusBadRequest, err.Error())
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
 	}
-	ret += buf
-	return c.Gemini(ret)
+	desc, err := db.GetRepoDesc(name, author)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, "Corrupted repository")
+	}
+	protocol := "http"
+	if config.Cfg.Git.Https {
+		protocol = "https"
+	}
+	public, err := db.IsRepoPublic(name, author)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, "Corrupted repository")
+	}
+	if !public && !owner {
+		return c.NoContent(gig.StatusBadRequest, "Private repository")
+	}
+
+	isEmpty := false
+	content := ""
+	commits := []commit{}
+	files := []file{}
+	branches := []branch{}
+	tags := []branch{}
+	page := getPage(param)
+	switch page {
+	case pageLog:
+		ret, err := repo.GetCommits(name, author)
+		if err != nil {
+			log.Println(err.Error())
+			return c.NoContent(gig.StatusBadRequest, "Corrupted repository")
+		}
+		if ret == nil {
+			isEmpty = true
+			break
+		} 
+		err = ret.ForEach(func(c *object.Commit) error {
+			info := c.Hash.String() + ", by " + c.Author.Name +
+				" on " + c.Author.When.Format("2006-01-02 15:04:05")
+			commits = append(commits,
+					 commit{Info: info, Message: c.Message})
+			return nil
+		})
+	case pageFiles:
+		ret, err := repo.GetFiles(name, author)
+		if err != nil {
+			log.Println(err.Error())
+			return c.NoContent(gig.StatusBadRequest, "Corrupted repository")
+		}
+		if ret == nil {
+			isEmpty = true
+			break
+		} 
+		err = ret.ForEach(func(f *object.File) error {
+			info := f.Mode.String() + " " + f.Name +
+				" " + strconv.Itoa(int(f.Size))
+			files = append(files,
+					file{Info: info,
+					Hash: f.Blob.Hash.String()})
+			return nil
+		})
+	case pageRefs:
+		refs, err := repo.GetRefs(name, author)
+		if err != nil {
+			log.Println(err)
+			return c.NoContent(gig.StatusBadRequest, "Corrupted repository")
+		}
+		if refs == nil {
+			isEmpty = true
+			break
+		}
+		err = refs.ForEach(func(c *plumbing.Reference) error {
+			if c.Type().String() != "hash-reference" || c.Name().IsRemote() {
+				return nil
+			}
+			var b branch
+			b.Name = c.Name().String()
+			name = name[strings.LastIndex(name, "/") + 1:]
+			b.Info = "last commit on "
+
+			commit, err := repo.GetCommit(name, author, c.Hash())
+			if err != nil {
+				b.Info = "failed to fetch commit"
+			} else {
+				when := commit.Author.When
+				str := fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d",
+					    when.Year(), int(when.Month()), when.Day(),
+					    when.Hour(), when.Minute(), when.Second())
+				b.Info += str + " by " + commit.Author.Name
+			}
+			if c.Name().IsBranch() {
+				branches = append(branches, b)
+			} else {
+				tags = append(tags, b)
+			}
+			return nil
+		})
+		refs.Close()
+	case pageLicense:
+		content, err = showRepoFile(author, name, "LICENSE")
+		if err != nil {
+			log.Println(err.Error())
+			return c.NoContent(gig.StatusBadRequest, "Not license found")
+		}
+	case pageReadme:
+		content, err = showRepoFile(author, name, "README.gmi")
+		if err != nil {
+			content, err = showRepoFile(author, name, "README")
+		}
+		if err != nil {
+			log.Println(err.Error())
+			return c.NoContent(gig.StatusBadRequest, "Not readme found")
+		}
+	}
+	
+	data := struct {
+		Protocol string
+		Domain string
+		User string
+		Description string
+		Repo string
+		Public bool
+		Owner bool
+		HasReadme bool
+		HasLicense bool
+		Log bool
+		Files bool
+		Refs bool
+		Readme bool
+		License bool
+		Empty bool
+		Commits []commit
+		Tags []branch
+		Branches []branch
+		FileList []file
+		Content string
+	}{
+		Public: public,
+		Protocol: protocol,
+		Domain: config.Cfg.Git.Domain,
+		User: author,
+		Description: desc,
+		Repo: name,
+		Owner: owner,
+		HasReadme: hasFile(name, author, "README.gmi")||
+			   hasFile(name, author, "README"),
+		HasLicense: hasFile(name, author, "LICENSE"),
+		Log: page == pageLog,
+		Readme: page == pageReadme,
+		License: page == pageLicense,
+		Files: page == pageFiles,
+		Refs: page == pageRefs,
+		Commits: commits,
+		Tags: tags,
+		Branches: branches,
+		FileList: files,
+		Empty: isEmpty,
+		Content: content,
+	}
+	var b bytes.Buffer
+	err = repoPage.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
 }

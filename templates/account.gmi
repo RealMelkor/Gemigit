@@ -1,0 +1,13 @@
+=>/ Main page
+
+# Account : {{ .Username }}
+{{ .Description }}
+
+=>/account/addrepo Create a new repository
+=>/account/chdesc Change your account description
+=>/account/disconnect Disconnect
+
+## Repositories list
+{{ range .Repositories -}} 
+=>/account/repo/{{.}} {{.}}
+{{ end -}}
