@@ -28,7 +28,8 @@ func RemoveRepo(name string, username string) error {
 	return os.RemoveAll(rootPath + "/" + username + "/" + name)
 }
 
-func GetCommit(name string, username string, hash plumbing.Hash) (*object.Commit, error) {
+func GetCommit(name string, username string,
+	       hash plumbing.Hash) (*object.Commit, error) {
 	repo, err := git.PlainOpen(rootPath + "/" + username + "/" + name)
 	if err != nil {
 		return nil, err
@@ -145,7 +146,8 @@ func GetPublicFile(name string, username string, hash string) (string, error) {
 	return string(buf), nil
 }
 
-func GetPrivateFile(name string, username string, hash string, sig string) (string, error) {
+func GetPrivateFile(name string, username string,
+		    hash string, sig string) (string, error) {
 	user, b := db.GetUser(sig)
 	if !b || username != user.Name {
 		return "", errors.New("invalid signature")
@@ -170,6 +172,6 @@ func GetPrivateFile(name string, username string, hash string, sig string) (stri
 }
 
 func ChangeRepoDir(name string, username string, newname string) error {
-	return os.Rename(rootPath+"/"+username+"/"+name, 
-			 rootPath+"/"+username+"/"+newname)
+	return os.Rename(rootPath + "/" + username + "/" + name,
+			 rootPath + "/" + username + "/" + newname)
 }

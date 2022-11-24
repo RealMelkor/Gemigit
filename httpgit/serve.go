@@ -2,7 +2,7 @@ package httpgit
 
 import (
 	"gemigit/access"
-	"gemigit/config"
+	//"gemigit/config"
 	"gemigit/db"
 	"log"
 	"net/http"
@@ -16,7 +16,8 @@ import (
 func Listen(path string, port int) {
 	ghx, err := githttpxfer.New(path, "git")
 	if err != nil {
-		log.Fatalln("GitHTTPXfer instance could not be created. ", err.Error())
+		log.Fatalln("GitHTTPXfer instance could not be created. ",
+			    err.Error())
 	}
 
 	chain := newChain()
@@ -25,7 +26,8 @@ func Listen(path string, port int) {
 	handler := chain.build(ghx)
 
 	log.Println("Http server started on port", port)
-	if err := http.ListenAndServe(":"+strconv.Itoa(port), handler); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(port), handler);
+	   err != nil {
 		log.Fatalln("ListenAndServe: ", err.Error())
 	}
 }
@@ -57,7 +59,8 @@ func logging(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		t2 := time.Now()
 		realIP := r.Header.Get("X-Real-IP")
-		log.Println("["+realIP+"]["+r.Method+"]", r.URL.String(), t2.Sub(t1))
+		log.Println("["+realIP+"]["+r.Method+"]",
+			    r.URL.String(), t2.Sub(t1))
 	})
 }
 
@@ -86,8 +89,10 @@ func basicAuth(next http.Handler) http.Handler {
 			renderUnauthorized(w)
 			return
 		}
-		if config.Cfg.Ldap.Enabled {
-			if err := access.Login(username, password); err != nil {
+		//if config.Cfg.Ldap.Enabled {
+		if true {
+			if err := access.Login(username, password);
+			   err != nil {
 				log.Println(err.Error())
 				renderUnauthorized(w)
 				return
@@ -114,7 +119,7 @@ func renderNotFound(w http.ResponseWriter) {
 
 func renderUnauthorized(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", "Basic realm=\"" +
-			"Please enter your username and password.\"")
+		       "Please enter your username and password.\"")
 	w.WriteHeader(http.StatusUnauthorized)
 	w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
 	w.Header().Set("Content-Type", "text/plain")

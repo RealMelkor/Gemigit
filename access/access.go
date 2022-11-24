@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"gemigit/config"
-	//"gemigit/db"
+	"gemigit/db"
 
 	ldap "github.com/go-ldap/ldap/v3"
 )
@@ -32,8 +32,6 @@ func Login(name string, password string) (error) {
 				 password)
 		return err
 	}
-	return nil
-	/*
 	b, err := db.CheckAuth(name, password)
 	if err != nil {
 		return err
@@ -41,6 +39,6 @@ func Login(name string, password string) (error) {
 	if !b {
 		return errors.New("invalid credential")
 	}
-	return nil*/
+	return nil
 }
 
