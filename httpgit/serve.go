@@ -13,7 +13,7 @@ import (
 	githttpxfer "github.com/nulab/go-git-http-xfer/githttpxfer"
 )
 
-func Listen(path string, port int) {
+func Listen(path string, address string, port int) {
 	ghx, err := githttpxfer.New(path, "git")
 	if err != nil {
 		log.Fatalln("GitHTTPXfer instance could not be created. ",

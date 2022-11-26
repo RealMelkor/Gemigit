@@ -150,7 +150,9 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	go httpgit.Listen("repos/", config.Cfg.Git.Port)
+	go httpgit.Listen("repos/",
+			  config.Cfg.Git.Address,
+			  config.Cfg.Git.Port)
 	go auth.Decrease()
 
 	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | " +
@@ -627,7 +629,9 @@ func main() {
 		return showIndex(c)
 	})
 
-	err = g.Run("cert.pem", "key.pem")
+	err = g.Run(config.Cfg.Gemini.Address + ":" + config.Cfg.Gemini.Port,
+		    config.Cfg.Gemini.Certificate, config.Cfg.Gemini.Key)
+
 	if err != nil {
 		log.Fatal(err.Error())
 	}

@@ -1,22 +1,27 @@
 title: "Gemigit" # title on the main page
 database: "gemigit.db" # sqlite3 database file
-certificate: "cert.pem" # SSL certificate
-key: "key.pem" # private key
+
+gemini:
+  certificate: "cert.pem" # SSL certificate
+  key: "key.pem" # private key
+  address: "0.0.0.0" # address to listen on
+  port: 1965 # bind port for gemini request
 
 git:
-  https: true # show https instead of http in the repo page (when using a reverse proxy)
-  domain: "mydomain.com" # domain for the http git request
+  https: false # show https instead of http in the repository pages
+  domain: "localhost" # domain for the http git request
+  address: "0.0.0.0" # address to listen on
   port: 5555 # bind port for http git request
 
 ldap:
-  enabled: true # logging using ldap credential
-  url: "ldaps://ldap.mydomain.com" # url to the ldap server
+  enabled: false # logging using ldap credential
+  url: "ldaps://ldap.example.com" # url to the ldap server
   attribute: "cn" # attribute associated with the username
-  binding: "ou=users,dc=mydomain,dc=com"
+  binding: "ou=users,dc=example,dc=com"
 
 users:
   registration: true # allow registration, will be disabled if ldap is enabled
-  session: 0 # Number of seconds before disconnecting a user, 0 = never
+  session: 1209600 # Number of seconds before disconnecting a user
 
 protection:
   ip: 10 # Maximum connection attempts before the ip is blocked

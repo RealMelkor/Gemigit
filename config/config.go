@@ -7,18 +7,23 @@ var Cfg Config
 type Config struct {
 	Title		string `validate:"required"`
 	Database	string `validate:"required"`
-	Certificate	string `validate:"required"`
-	Key		string `validate:"required"`
+	Gemini struct {
+		Certificate	string `validate:"required"`
+		Key		string `validate:"required"`
+		Address		string `validate:"required"`
+		Port		string `validate:"required"`
+	}
 	Git struct {
 		Https	bool
 		Domain	string	`validate:"required"`
+		Address string  `validate:"required"`
 		Port	int	`validate:"required"`
 	}
 	Ldap struct {
-		Enabled		bool	//`validate:"required"`
-		Url		string	//`validate:"required"`
-		Attribute	string	//`validate:"required"`
-		Binding		string	//`validate:"required"`
+		Enabled		bool
+		Url		string
+		Attribute	string
+		Binding		string
 	}
 	Users struct {
 		Registration	bool   `validate:"required"`

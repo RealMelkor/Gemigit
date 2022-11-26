@@ -1,7 +1,10 @@
 =>/ Main page
 
 # Account : {{ .Username }}
-{{ .Description }}
+{{if .Description -}}
+> {{ .Description }}
+
+{{end -}}
 
 =>/account/addrepo Create a new repository
 =>/account/addgroup Create a new user group
