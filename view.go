@@ -180,14 +180,22 @@ func showMembers(c gig.Context) (error) {
 		return c.NoContent(gig.StatusTemporaryFailure,
 				   "Failed to fetch group members")
 	}
+	desc, err := db.GetGroupDesc(group)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Failed to fetch group description")
+	}
 	data := struct {
 		Members []db.Member
 		Owner bool
 		Group string
+		Description string
 	}{
 		Group: group,
 		Owner: owner,
 		Members: members,
+		Description: desc,
 	}
 	var b bytes.Buffer
 	err = groupMembersPage.Execute(&b, data)

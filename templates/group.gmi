@@ -1,6 +1,9 @@
 =>/account/groups Go back
 
 # {{ .Group }}
+{{if .Description -}}
+> {{ .Description }}
+{{end -}}
 {{if .Owner -}}
 =>/account/groups/{{.Group}}/add Add user
 =>/account/groups/{{.Group}}/desc Set description

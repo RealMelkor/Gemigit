@@ -417,6 +417,24 @@ func GetUserID(name string) (int, error) {
 	return id, nil
 }
 
+func GetGroupDesc(name string) (string, error) {
+	query := "SELECT description FROM groups WHERE UPPER(?) = UPPER(name);"
+	rows, err := db.Query(query, name)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return "", errors.New("Group not found")
+	}
+	var desc string
+	err = rows.Scan(&desc)
+	if err != nil {
+		return "", err
+	}
+	return desc, nil
+}
+
 func GetGroupID(name string) (int, error) {
 	query := "SELECT groupID FROM groups WHERE UPPER(?) = UPPER(name);"
 	rows, err := db.Query(query, name)
@@ -481,6 +499,36 @@ func DeleteMember(user int, group int) error {
 	}
 	if rows < 1 {
 		return errors.New("The user is not a member of the group")
+	}
+	return nil
+}
+
+func SetGroupDescription(group int, desc string) error {
+	_, err := db.Exec("UPDATE groups SET description = ? " +
+			  "WHERE groupID = ?", desc, group)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteGroup(group int) error {
+	statement, err := db.Exec("DELETE FROM groups " +
+				  "WHERE groupID = ?", group)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("There's no such group")
+	}
+	statement, err = db.Exec("DELETE FROM member " +
+				 "WHERE groupID = ?", group)
+	if err != nil {
+		return err
 	}
 	return nil
 }

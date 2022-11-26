@@ -7,6 +7,61 @@ import (
 	"github.com/pitr/gig"
 )
 
+func isGroupOwner(c gig.Context) (int, error) {
+	user, exist := db.GetUser(c.CertHash())
+        if !exist {
+                return -1, c.NoContent(gig.StatusBadRequest,
+                         	       "Invalid username")
+        }
+	groupID, err := db.GetGroupID(c.Param("group"))
+	if err != nil {
+		return -1, c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	owner, err := user.IsInGroupID(groupID)
+	if err != nil {
+		return -1, c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	if !owner {
+                return -1, c.NoContent(gig.StatusBadRequest,
+				       "Permission denied")
+	}
+	return groupID, nil
+}
+
+func setGroupDesc(c gig.Context) error {
+	query, err := c.QueryString()
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	if query == "" {
+		return c.NoContent(gig.StatusInput, "Description")
+	}
+
+	id, err := isGroupOwner(c)
+	if err != nil {
+		return err
+	}
+
+	err = db.SetGroupDescription(id, query)
+	if err != nil {
+		return err
+	}
+	return c.NoContent(gig.StatusRedirectTemporary,
+			   "/account/groups/" + c.Param("group"))
+}
+
+func deleteGroup(c gig.Context) error {
+	id, err := isGroupOwner(c)
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	err = db.DeleteGroup(id)
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups")
+}
+
 func leaveGroup(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
         if !exist {
@@ -33,27 +88,19 @@ func leaveGroup(c gig.Context) (error) {
 }
 
 func rmFromGroup(c gig.Context) (error) {
-	user, exist := db.GetUser(c.CertHash())
-        if !exist {
-                return c.NoContent(gig.StatusBadRequest,
-                                   "Invalid username")
-        }
-	group := c.Param("group")
-	groupID, err := db.GetGroupID(group)
+	groupID, err := isGroupOwner(c)
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
-	}
-	owner, err := user.IsInGroupID(groupID)
-	if err != nil {
-		return c.NoContent(gig.StatusBadRequest, err.Error())
-	}
-	if !owner {
-                return c.NoContent(gig.StatusBadRequest, "Permission denied")
 	}
 	userID, err := db.GetUserID(c.Param("user"))
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
+	user, exist := db.GetUser(c.CertHash())
+        if !exist {
+                return c.NoContent(gig.StatusBadRequest,
+                                   "Invalid username")
+        }
 	if userID == user.ID {
 		return c.NoContent(gig.StatusBadRequest,
 			"You cannot remove yourself from your own group")
@@ -63,7 +110,7 @@ func rmFromGroup(c gig.Context) (error) {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/groups/" + group)
+			   "/account/groups/" + c.Param("group"))
 }
 
 func addToGroup(c gig.Context) (error) {

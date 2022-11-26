@@ -169,29 +169,14 @@ func main() {
 		return "", nil
 	}))
 
-	secure.Handle("", func(c gig.Context) error {
-		return showAccount(c)
-	})
-
-	secure.Handle("/groups", func(c gig.Context) error {
-		return showGroups(c)
-	})
-
-	secure.Handle("/groups/:group", func(c gig.Context) error {
-		return showMembers(c)
-	})
-
-	secure.Handle("/groups/:group/add", func(c gig.Context) error {
-		return addToGroup(c)
-	})
-
-	secure.Handle("/groups/:group/leave", func(c gig.Context) error {
-		return leaveGroup(c)
-	})
-
-	secure.Handle("/groups/:group/kick/:user", func(c gig.Context) error {
-		return rmFromGroup(c)
-	})
+	secure.Handle("", showAccount)
+	secure.Handle("/groups", showGroups)
+	secure.Handle("/groups/:group", showMembers)
+	secure.Handle("/groups/:group/desc", setGroupDesc)
+	secure.Handle("/groups/:group/add", addToGroup)
+	secure.Handle("/groups/:group/leave", leaveGroup)
+	secure.Handle("/groups/:group/delete", deleteGroup)
+	secure.Handle("/groups/:group/kick/:user", rmFromGroup)
 
 	secure.Handle("/repo/:repo/files", func(c gig.Context) error {
 		user, exist := db.GetUser(c.CertHash())
