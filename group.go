@@ -51,6 +51,19 @@ func setGroupDesc(c gig.Context) error {
 }
 
 func deleteGroup(c gig.Context) error {
+	name, err := c.QueryString()
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest,
+				   "Invalid input received")
+	}
+	if name == "" {
+		return c.NoContent(gig.StatusInput,
+				   "To confirm type the group name")
+	}
+	if name != c.Param("group") {
+		return c.NoContent(gig.StatusRedirectTemporary,
+				   "/account/groups/" + c.Param("group"))
+	}
 	id, err := isGroupOwner(c)
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())

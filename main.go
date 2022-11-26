@@ -407,9 +407,9 @@ func main() {
 			return c.NoContent(gig.StatusBadRequest,
 					   "Invalid input received")
 		}
-		if name != "" {
+		if name == "" {
 			return c.NoContent(gig.StatusInput,
-					   "Type the repository name")
+					"To confirm type the repository name")
 		}
 		if name != c.Param("repo") {
 			return c.NoContent(gig.StatusRedirectTemporary,

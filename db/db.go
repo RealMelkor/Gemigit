@@ -68,7 +68,23 @@ func (user *User) repoAlreadyExist(repo string) (error) {
 	}
 	defer rows.Close()
 	if rows.Next() {
-		return errors.New("repo with the same name already exist")
+		return errors.New(
+			"Repository with the same name already exist")
+	}
+	return nil
+}
+
+func groupAlreadyExist(group string) (error) {
+	rows, err := db.Query(
+		"SELECT * FROM groups WHERE UPPER(name) LIKE UPPER(?)",
+		group)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New(
+			"A group with the same name already exist")
 	}
 	return nil
 }
@@ -372,7 +388,7 @@ func (user User) CreateGroup(group string, signature string) error {
 		return err
 	}
 
-	err := user.repoAlreadyExist(group)
+	err := groupAlreadyExist(group)
 	if err != nil {
 		return err
 	}
