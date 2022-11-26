@@ -57,6 +57,24 @@ func isNameValid(name string) (error) {
 	return nil
 }
 
+func isGroupNameValid(name string) (error) {
+	if len(name) == 0 {
+		return errors.New("empty name")
+	}
+	if !unicode.IsLetter([]rune(name)[0]) {
+		return errors.New("the group name must start with a letter")
+	}
+	for _, c := range name {
+		if c > unicode.MaxASCII || 
+		   (!unicode.IsLetter(c) && !unicode.IsNumber(c) &&
+		   c != '-' && c != '_') {
+			return errors.New("the group name " +
+					  "contains invalid characters")
+		}
+	}
+	return nil
+}
+
 func isRepoNameValid(name string) (error) {
 	if len(name) == 0 {
 		return errors.New("empty name")

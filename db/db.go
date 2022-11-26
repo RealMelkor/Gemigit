@@ -260,58 +260,6 @@ func FetchUser(username string, signature string) (User, error) {
 	u.Signature = signature
 	return u, nil
 }
-/*
-func Login(username string, password string, signature string) (bool, error) {
-	var query string
-	if config.Cfg.Ldap.Enabled {
-		query = "select userID, name, description, creation " +
-			"from user WHERE UPPER(name) LIKE UPPER(?)"
-	} else {
-		query = "select userID, name, description, creation," +
-			"password from user WHERE UPPER(name) LIKE UPPER(?)"
-	}
-	rows, err := db.Query(query, username)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	next := rows.Next()
-	if !next && config.Cfg.Ldap.Enabled {
-		Register(username, "")
-		rows, err = db.Query(query, username)
-		if err != nil {
-			return false, err
-		}
-		next = rows.Next()
-	}
-	if next {
-		var u = User{}
-		var dPassword string
-		if config.Cfg.Ldap.Enabled {
-			err = rows.Scan(&u.ID,
-					&u.Name,
-					&u.Description,
-					&u.Registration)
-		} else {
-			err = rows.Scan(&u.ID,
-					&u.Name,
-					&u.Description,
-					&u.Registration,
-					&dPassword)
-		}
-		if err != nil {
-			return false, err
-		}
-		if config.Cfg.Ldap.Enabled ||
-		   checkPassword(password, dPassword) {
-			u.Connection = time.Now()
-			u.Signature = signature
-			users[signature] = u
-			return true, nil
-		}
-	}
-	return false, nil
-}*/
 
 func Register(username string, password string) error {
 
@@ -384,7 +332,7 @@ func (user User) CreateGroup(group string, signature string) error {
 		return err
 	}
 
-	if err := isRepoNameValid(group); err != nil { // isGroupNameValid?
+	if err := isGroupNameValid(group); err != nil {
 		return err
 	}
 
@@ -725,29 +673,6 @@ func (user User) IsInGroupID(groupID int) (bool, error) {
 	}
 	return owner == user.ID, nil
 }
-
-/*
-func (user User) IsInGroup(group string) (bool, error) {
-	query := "SELECT owner FROM member a " +
-		 "INNER JOIN user b ON a.userID = b.userID " +
-		 "INNER JOIN groups c ON a.groupID = c.groupID " +
-		 "WHERE b.userID = ? " +
-		 "AND UPPER(c.name) = UPPER(?);"
-	rows, err := db.Query(query, user.ID, group)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return false, errors.New("Group not found")
-	}
-	var owner int
-	err = rows.Scan(&owner)
-	if err != nil {
-		return false, err
-	}
-	return owner == user.ID, nil
-}*/
 
 func (user User) GetMembers(group string) ([]Member, error) {
 	var rows *sql.Rows
