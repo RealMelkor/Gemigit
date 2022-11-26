@@ -1,0 +1,12 @@
+=>/repo Go back
+
+# {{ .group }} - {{ .MembersCount }} members
+
+## Group administrator
+=>/repo/{{ .Owner }}/ {{ .Owner }}
+
+## Members
+
+{{ range .Members -}}
+=>/repo/{{ .Username }}/ {{ .Username }} [{{ .Access }}]
+{{ end -}}

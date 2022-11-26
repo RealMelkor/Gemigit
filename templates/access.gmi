@@ -1,0 +1,11 @@
+=>/account/{{.Repo}} Go back
+
+# {{ .Repo }} access
+
+{{ range .Members -}}
+* { .Username }
+{{if .Owner -}}
+=>/account/groups/{.Group}/{.Username}/kick Remove { .Username }
+{{end -}}
+
+{{ end -}}

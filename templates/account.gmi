@@ -4,10 +4,16 @@
 {{ .Description }}
 
 =>/account/addrepo Create a new repository
+=>/account/addgroup Create a new user group
 =>/account/chdesc Change your account description
+=>/account/groups View the groups you are in
 =>/account/disconnect Disconnect
 
-## Repositories list
+## Your repositories
 {{ range .Repositories -}} 
 =>/account/repo/{{.}} {{.}}
+{{ end }}
+## Repositories
+{{ range .RepositoriesAccess -}} 
+=>/account/repo/{{.Name}} {{.Name}} by {{.Author}}
 {{ end -}}

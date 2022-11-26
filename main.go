@@ -45,13 +45,14 @@ func main() {
 	if err := config.LoadConfig(); err != nil {
 		log.Fatalln(err.Error())
 	}
-	if err := access.Init(); err != nil {
-		log.Fatalln(err.Error())
-	}
 
 	if len(os.Args) > 1 {
 		switch (os.Args[1]) {
 		case "chpasswd":
+			if (config.Cfg.Ldap.Enabled) {
+				fmt.Println("Not valid when LDAP is enabled")
+				return
+			}
 			if len(os.Args) < 3 {
 				fmt.Println(os.Args[0] +
 					    " chpasswd <username>")
@@ -77,6 +78,10 @@ func main() {
 			fmt.Println(os.Args[2] + "'s password changed")
 			return
 		case "register":
+			if (config.Cfg.Ldap.Enabled) {
+				fmt.Println("Not valid when LDAP is enabled")
+				return
+			}
 			if len(os.Args) < 3 {
 				fmt.Println(os.Args[0] +
 					    " register <username>")
@@ -128,6 +133,10 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	if err := access.Init(); err != nil {
+		log.Fatalln(err.Error())
+	}
+
 	if err := loadTemplate(); err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -162,6 +171,26 @@ func main() {
 
 	secure.Handle("", func(c gig.Context) error {
 		return showAccount(c)
+	})
+
+	secure.Handle("/groups", func(c gig.Context) error {
+		return showGroups(c)
+	})
+
+	secure.Handle("/groups/:group", func(c gig.Context) error {
+		return showMembers(c)
+	})
+
+	secure.Handle("/groups/:group/add", func(c gig.Context) error {
+		return addToGroup(c)
+	})
+
+	secure.Handle("/groups/:group/leave", func(c gig.Context) error {
+		return leaveGroup(c)
+	})
+
+	secure.Handle("/groups/:group/kick/:user", func(c gig.Context) error {
+		return rmFromGroup(c)
 	})
 
 	secure.Handle("/repo/:repo/files", func(c gig.Context) error {
@@ -359,6 +388,30 @@ func main() {
 		}
 		return c.NoContent(gig.StatusRedirectTemporary,
 				   "/account/repo/" + name)
+
+	})
+
+	secure.Handle("/addgroup", func(c gig.Context) error {
+
+		name, err := c.QueryString()
+		if err != nil {
+			return c.NoContent(gig.StatusBadRequest, err.Error())
+		}
+		if name == "" {
+			return c.NoContent(gig.StatusInput, "Group name")
+		}
+		user, b := db.GetUser(c.CertHash())
+		if !b {
+			return c.NoContent(gig.StatusBadRequest,
+					   "Cannot find username")
+		}
+		if err := user.CreateGroup(name, c.CertHash());
+		   err != nil {
+			return c.NoContent(gig.StatusBadRequest,
+					   err.Error())
+		}
+		return c.NoContent(gig.StatusRedirectTemporary,
+				   "/account/groups/" + name)
 
 	})
 

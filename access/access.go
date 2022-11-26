@@ -12,6 +12,9 @@ import (
 var conn *ldap.Conn
 
 func Init() error {
+	if !config.Cfg.Ldap.Enabled {
+        	return nil
+	}
         l, err := ldap.DialURL(config.Cfg.Ldap.Url)
         if err != nil {
                 return err
@@ -20,11 +23,12 @@ func Init() error {
         return nil
 }
 
+// return nil if credential are valid, an error if not
 func Login(name string, password string) (error) {
+	if name == "" || password == "" {
+		return errors.New("empty field")
+	}
 	if config.Cfg.Ldap.Enabled {
-		if name == "" || password == "" {
-			return errors.New("empty field")
-		}
 		err := conn.Bind(fmt.Sprintf("%s=%s,%s",
 				 config.Cfg.Ldap.Attribute,
 				 ldap.EscapeFilter(name),
@@ -32,12 +36,9 @@ func Login(name string, password string) (error) {
 				 password)
 		return err
 	}
-	b, err := db.CheckAuth(name, password)
+	err := db.CheckAuth(name, password)
 	if err != nil {
 		return err
-	}
-	if !b {
-		return errors.New("invalid credential")
 	}
 	return nil
 }

@@ -1,28 +1,22 @@
-=>/account Go back
+=>/repo Go back
 
-# {{ .Repo }}
+# {{ .Repo }} by {{ .User }}
+=>/repo/{{.User}} View account
 {{if .Description -}}
 > {{ .Description }}
 {{end -}}
 > git clone {{ .Protocol }}://{{ .Domain }}/{{ .User }}/{{ .Repo }}
 
-=>/account/repo/{{.Repo}}/chname Change repository name
-=>/account/repo/{{.Repo}}/chdesc Change repository description
-=>/account/repo/{{.Repo}}/delrepo Delete repository
-=>/account/repo/{{.Repo}}/togglepublic Make the repository {{if .Public}}private{{else}}public {{end }}
-=>/account/repo/{{.Repo}}/grant Grant access to a user
-=>/account/repo/{{.Repo}}/ggrant Grant access to a group
-=>/account/repo/access Manage repository access
-
-=>/account/repo/{{.Repo}} Log
-=>/account/repo/{{.Repo}}/files Files
-=>/account/repo/{{.Repo}}/refs Refs
+=>/repo/{{.User}}/{{.Repo}} Log
+=>/repo/{{.User}}/{{.Repo}}/files Files
+=>/repo/{{.User}}/{{.Repo}}/refs Refs
 {{ if .HasLicense -}}
-/account/repo/{{.Repo}}/license License
+=>/repo/{{.User}}/{{.Repo}}/license License
 {{ end -}}
 {{ if .HasReadme -}}
-/account/repo/{{.Repo}}/readme Readme
+=>/repo/{{.User}}/{{.Repo}}/readme Readme
 {{ end }}
+
 {{ if .Log -}}
 ## Commits
 

@@ -28,6 +28,9 @@ const (
 var mainPage *template.Template
 var accountPage *template.Template
 var repoPage *template.Template
+var repoPublicPage *template.Template
+var groupListPage *template.Template
+var groupMembersPage *template.Template
 
 func loadTemplate() error {
 	var err error
@@ -40,6 +43,18 @@ func loadTemplate() error {
 		return err
 	}
 	repoPage, err = template.ParseFiles("templates/repo.gmi")
+	if err != nil {
+		return err
+	}
+	repoPublicPage, err = template.ParseFiles("templates/public_repo.gmi")
+	if err != nil {
+		return err
+	}
+	groupListPage, err = template.ParseFiles("templates/group_list.gmi")
+	if err != nil {
+		return err
+	}
+	groupMembersPage, err = template.ParseFiles("templates/group.gmi")
 	if err != nil {
 		return err
 	}
@@ -103,10 +118,12 @@ func showAccount(c gig.Context) (error) {
 		Username string
 		Description string
 		Repositories []string
+		RepositoriesAccess []string
 	}{
 		Username: user.Name,
 		Description: user.Description,
 		Repositories: repoNames,
+		RepositoriesAccess: nil,
 	}
 	var b bytes.Buffer
 	err = accountPage.Execute(&b, data)
@@ -115,7 +132,70 @@ func showAccount(c gig.Context) (error) {
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
 	}
 	return c.Gemini(b.String())
+}
 
+func showGroups(c gig.Context) (error) {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest,
+				   "Invalid username")
+	}
+	groups, err := user.GetGroups()
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Failed to fetch groups")
+	}
+	data := struct {
+		Groups []db.Group
+	}{
+		Groups: groups,
+	}
+	var b bytes.Buffer
+	err = groupListPage.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
+}
+
+func showMembers(c gig.Context) (error) {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest,
+				   "Invalid username")
+	}
+	group := c.Param("group")
+	owner, err := user.IsInGroup(group)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Group not found")
+	}
+
+	members, err := user.GetMembers(group)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Failed to fetch group members")
+	}
+	data := struct {
+		Members []db.Member
+		Owner bool
+		Group string
+	}{
+		Group: group,
+		Owner: owner,
+		Members: members,
+	}
+	var b bytes.Buffer
+	err = groupMembersPage.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
 }
 
 func getRepo(c gig.Context, owner bool) (string, string, error) {
@@ -123,8 +203,8 @@ func getRepo(c gig.Context, owner bool) (string, string, error) {
         if owner {
                 user, exist := db.GetUser(c.CertHash())
                 if !exist {
-                        return "", "",
-				c.NoContent(gig.StatusBadRequest, "Invalid username")
+                        return "", "", c.NoContent(gig.StatusBadRequest,
+						   "Invalid username")
                 }
                 username = user.Name
         } else {
@@ -132,7 +212,7 @@ func getRepo(c gig.Context, owner bool) (string, string, error) {
                 ret, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
                 if !ret || err != nil {
                         return "", "", c.NoContent(gig.StatusBadRequest,
-                                "No repository called " + c.Param("repo") +
+				"No repository called " + c.Param("repo") +
                                 " by user " + c.Param("user"))
                 }
         }
@@ -187,7 +267,8 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 	desc, err := db.GetRepoDesc(name, author)
 	if err != nil {
 		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, "Corrupted repository")
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Repository not found")
 	}
 	protocol := "http"
 	if config.Cfg.Git.Https {
@@ -196,10 +277,12 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 	public, err := db.IsRepoPublic(name, author)
 	if err != nil {
 		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, "Corrupted repository")
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Repository not found")
 	}
 	if !public && !owner {
-		return c.NoContent(gig.StatusBadRequest, "Private repository")
+		return c.NoContent(gig.StatusBadRequest,
+				   "Private repository")
 	}
 
 	isEmpty := false
@@ -214,7 +297,8 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		ret, err := repo.GetCommits(name, author)
 		if err != nil {
 			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest, "Corrupted repository")
+			return c.NoContent(gig.StatusBadRequest,
+					   "Corrupted repository")
 		}
 		if ret == nil {
 			isEmpty = true
@@ -222,16 +306,19 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		} 
 		err = ret.ForEach(func(c *object.Commit) error {
 			info := c.Hash.String() + ", by " + c.Author.Name +
-				" on " + c.Author.When.Format("2006-01-02 15:04:05")
+				" on " +
+				c.Author.When.Format("2006-01-02 15:04:05")
 			commits = append(commits,
-					 commit{Info: info, Message: c.Message})
+					 commit{Info: info,
+					 	Message: c.Message})
 			return nil
 		})
 	case pageFiles:
 		ret, err := repo.GetFiles(name, author)
 		if err != nil {
 			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest, "Corrupted repository")
+			return c.NoContent(gig.StatusBadRequest,
+					   "Corrupted repository")
 		}
 		if ret == nil {
 			isEmpty = true
@@ -249,14 +336,16 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		refs, err := repo.GetRefs(name, author)
 		if err != nil {
 			log.Println(err)
-			return c.NoContent(gig.StatusBadRequest, "Corrupted repository")
+			return c.NoContent(gig.StatusBadRequest,
+					   "Corrupted repository")
 		}
 		if refs == nil {
 			isEmpty = true
 			break
 		}
 		err = refs.ForEach(func(c *plumbing.Reference) error {
-			if c.Type().String() != "hash-reference" || c.Name().IsRemote() {
+			if c.Type().String() != "hash-reference" ||
+			   c.Name().IsRemote() {
 				return nil
 			}
 			var b branch
@@ -269,9 +358,11 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 				b.Info = "failed to fetch commit"
 			} else {
 				when := commit.Author.When
-				str := fmt.Sprintf("%d-%02d-%02d %02d:%02d:%02d",
-					    when.Year(), int(when.Month()), when.Day(),
-					    when.Hour(), when.Minute(), when.Second())
+				str := fmt.Sprintf(
+					"%d-%02d-%02d %02d:%02d:%02d",
+					when.Year(), int(when.Month()),
+					when.Day(), when.Hour(),
+					when.Minute(), when.Second())
 				b.Info += str + " by " + commit.Author.Name
 			}
 			if c.Name().IsBranch() {
@@ -286,7 +377,8 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		content, err = showRepoFile(author, name, "LICENSE")
 		if err != nil {
 			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest, "Not license found")
+			return c.NoContent(gig.StatusBadRequest,
+					   "Not license found")
 		}
 	case pageReadme:
 		content, err = showRepoFile(author, name, "README.gmi")
@@ -295,7 +387,8 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		}
 		if err != nil {
 			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest, "Not readme found")
+			return c.NoContent(gig.StatusBadRequest,
+					   "Not readme found")
 		}
 	}
 	
@@ -306,7 +399,6 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		Description string
 		Repo string
 		Public bool
-		Owner bool
 		HasReadme bool
 		HasLicense bool
 		Log bool
@@ -327,8 +419,7 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		User: author,
 		Description: desc,
 		Repo: name,
-		Owner: owner,
-		HasReadme: hasFile(name, author, "README.gmi")||
+		HasReadme: hasFile(name, author, "README.gmi") ||
 			   hasFile(name, author, "README"),
 		HasLicense: hasFile(name, author, "LICENSE"),
 		Log: page == pageLog,
@@ -344,7 +435,11 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		Content: content,
 	}
 	var b bytes.Buffer
-	err = repoPage.Execute(&b, data)
+	if owner {
+		err = repoPage.Execute(&b, data)
+	} else {
+		err = repoPublicPage.Execute(&b, data)
+	}
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())

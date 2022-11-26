@@ -2,7 +2,7 @@ package httpgit
 
 import (
 	"gemigit/access"
-	//"gemigit/config"
+	"gemigit/config"
 	"gemigit/db"
 	"log"
 	"net/http"
@@ -89,8 +89,7 @@ func basicAuth(next http.Handler) http.Handler {
 			renderUnauthorized(w)
 			return
 		}
-		//if config.Cfg.Ldap.Enabled {
-		if true {
+		if config.Cfg.Ldap.Enabled {
 			if err := access.Login(username, password);
 			   err != nil {
 				log.Println(err.Error())
@@ -98,11 +97,9 @@ func basicAuth(next http.Handler) http.Handler {
 				return
 			}
 		} else {
-			ok, err := db.CheckAuth(username, password)
+			err := db.CheckAuth(username, password)
 			if err != nil {
 				log.Println(err.Error())
-			}
-			if !ok || err != nil {
 				renderUnauthorized(w)
 				return
 			}

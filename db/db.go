@@ -31,6 +31,17 @@ type User struct {
 	Signature    string
 }
 
+type Group struct {
+	GroupID     int
+	Name        string
+	Description string
+}
+
+type Member struct {
+	Name	string
+	UserID	int
+}
+
 var users = make(map[string]User)
 
 func userAlreadyExist(username string) (bool, error) {
@@ -118,6 +129,7 @@ func createTable(db *sql.DB) error {
 
 	groupTable := `CREATE TABLE groups (
 		"groupID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		"owner" INTEGER NOT NULL,
 		"name" TEXT UNIQUE NOT NULL,
 		"description" TEXT DEFAULT "",
 		"creation" INTEGER NOT NULL
@@ -177,12 +189,12 @@ func createTable(db *sql.DB) error {
 	return nil
 }
 
-func CheckAuth(username string, password string) (bool, error) {
+func CheckAuth(username string, password string) (error) {
 	rows, err := db.Query("select name, password from user" +
 			      " WHERE UPPER(name) LIKE UPPER(?)",
 			      username)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer rows.Close()
 	if rows.Next() {
@@ -190,15 +202,49 @@ func CheckAuth(username string, password string) (bool, error) {
 		var dName string
 		err = rows.Scan(&dName, &dPassword)
 		if err != nil {
-			return false, err
+			return err
 		}
 		if checkPassword(password, dPassword) {
-			return true, nil
+			return nil
 		}
 	}
-	return false, nil
+	return errors.New("invalid credential")
 }
 
+func FetchUser(username string, signature string) (User, error) {
+	query := "select userID, name, description, creation " +
+		 "from user WHERE UPPER(name) LIKE UPPER(?)"
+	rows, err := db.Query(query, username)
+	if err != nil {
+		return User{}, err
+	}
+	defer rows.Close()
+	next := rows.Next()
+	if !next {
+		return User{}, errors.New("")
+	}
+	var u = User{}
+	var dPassword string
+	if config.Cfg.Ldap.Enabled {
+		err = rows.Scan(&u.ID,
+				&u.Name,
+				&u.Description,
+				&u.Registration)
+	} else {
+		err = rows.Scan(&u.ID,
+				&u.Name,
+				&u.Description,
+				&u.Registration,
+				&dPassword)
+	}
+	if err != nil {
+		return User{}, err
+	}
+	u.Connection = time.Now()
+	u.Signature = signature
+	return u, nil
+}
+/*
 func Login(username string, password string, signature string) (bool, error) {
 	var query string
 	if config.Cfg.Ldap.Enabled {
@@ -249,7 +295,7 @@ func Login(username string, password string, signature string) (bool, error) {
 		}
 	}
 	return false, nil
-}
+}*/
 
 func Register(username string, password string) error {
 
@@ -317,6 +363,128 @@ func (user User) CreateRepo(repo string, signature string) error {
 	return nil
 }
 
+func (user User) CreateGroup(group string, signature string) error {
+	if err := user.VerifySignature(signature); err != nil {
+		return err
+	}
+
+	if err := isRepoNameValid(group); err != nil { // isGroupNameValid?
+		return err
+	}
+
+	err := user.repoAlreadyExist(group)
+	if err != nil {
+		return err
+	}
+
+	rows, err := db.Exec("INSERT INTO groups " +
+			     "(owner, name, description, creation) " +
+			     "VALUES(?, ?, \"\", strftime('%s', 'now'))",
+			     user.ID, group)
+	if err != nil {
+		return err
+	}
+	
+	groupID, err := rows.LastInsertId()
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("INSERT INTO member (groupID, userID) " +
+			 "VALUES(?, ?)", groupID, user.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetUserID(name string) (int, error) {
+	query := "SELECT userID FROM user WHERE UPPER(?) = UPPER(name);"
+	rows, err := db.Query(query, name)
+	if err != nil {
+		return -1, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return -1, errors.New("User not found")
+	}
+	var id int
+	err = rows.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
+func GetGroupID(name string) (int, error) {
+	query := "SELECT groupID FROM groups WHERE UPPER(?) = UPPER(name);"
+	rows, err := db.Query(query, name)
+	if err != nil {
+		return -1, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return -1, errors.New("Group not found")
+	}
+	var id int
+	err = rows.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
+func IsInGroup(userID int, groupID int) (error) {
+	query := "SELECT * FROM member WHERE userID=? AND groupID=?"
+	rows, err := db.Query(query, userID, groupID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("The user is already in the group")
+	}
+	return nil
+}
+
+func AddUserToGroup(group string, user string) error {
+	id, err := GetGroupID(group)
+	if err != nil {
+		return err
+	}
+	userID, err := GetUserID(user)
+	if err != nil {
+		return err
+	}
+	if err = IsInGroup(userID, id); err != nil {
+		return err
+	}
+	_, err = db.Exec("INSERT INTO member (groupID, userID) " +
+			  "VALUES(?, ?)", id, userID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteMember(user int, group int) error {
+	statement, err := db.Exec("DELETE FROM member " +
+				  "WHERE userID = ? AND groupID = ?",
+				  user, group)
+	if err != nil {
+		return err
+	}
+	rows, err := statement.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("The user is not a member of the group")
+	}
+	return nil
+}
+
 func DeleteUser(username string) error {
 	statement, err := db.Exec("delete FROM repo " +
 				  "WHERE userID in " +
@@ -364,14 +532,18 @@ func (user User) DeleteRepo(repo string, signature string) error {
 	return nil
 }
 
+func SetUser(signature string, user User) {
+	users[signature] = user
+}
+
 func GetUser(signature string) (User, bool) {
 	user, b := users[signature]
 	return user, b
 }
 
 func GetPublicUser(name string) (User, error) {
-	rows, err := db.Query("select userID, name, description, creation" +
-			      " from user WHERE UPPER(name) LIKE UPPER(?)",
+	rows, err := db.Query("select userID, name, description, creation " +
+			      "from user WHERE UPPER(name) LIKE UPPER(?)",
 			      name)
 	if err != nil {
 		return User{}, err
@@ -391,10 +563,10 @@ func GetPublicUser(name string) (User, error) {
 }
 
 func (user User) GetRepo(reponame string) (Repo, error) {
-	rows, err := db.Query("SELECT repoID, userID, name," + 
-			      " creation, public, description" +
-			      " FROM repo WHERE UPPER(name) LIKE UPPER(?)" +
-			      " AND userID=?", reponame, user.ID)
+	rows, err := db.Query("SELECT repoID, userID, name, " + 
+			      "creation, public, description " +
+			      "FROM repo WHERE UPPER(name) LIKE UPPER(?) " +
+			      "AND userID=?", reponame, user.ID)
 	if err != nil {
 		return Repo{}, err
 	}
@@ -439,6 +611,104 @@ func (user User) GetRepos(onlyPublic bool) ([]Repo, error) {
 	return repos, nil
 }
 
+func (user User) GetGroups() ([]Group, error) {
+	var rows *sql.Rows
+	var err error
+	query := "SELECT a.groupID, a.name, a.description FROM groups a " +
+		 "INNER JOIN member b ON a.groupID = b.groupID " +
+		 "WHERE b.userID = ?"
+	rows, err = db.Query(query, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var groups []Group
+	for rows.Next() {
+		var g = Group{}
+		err = rows.Scan(&g.GroupID, &g.Name, &g.Description)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, g)
+	}
+	return groups, nil
+}
+
+func (user User) IsInGroup(group string) (bool, error) {
+	id, err := GetGroupID(group)
+	if err != nil {
+		return false, err
+	}
+	return user.IsInGroupID(id)
+}
+
+func (user User) IsInGroupID(groupID int) (bool, error) {
+	query := "SELECT owner FROM member a " +
+		 "INNER JOIN groups b ON a.groupID = b.groupID " +
+		 "WHERE a.userID = ? AND a.groupID = ? "
+	rows, err := db.Query(query, user.ID, groupID)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return false, errors.New("Group not found")
+	}
+	var owner int
+	err = rows.Scan(&owner)
+	if err != nil {
+		return false, err
+	}
+	return owner == user.ID, nil
+}
+
+/*
+func (user User) IsInGroup(group string) (bool, error) {
+	query := "SELECT owner FROM member a " +
+		 "INNER JOIN user b ON a.userID = b.userID " +
+		 "INNER JOIN groups c ON a.groupID = c.groupID " +
+		 "WHERE b.userID = ? " +
+		 "AND UPPER(c.name) = UPPER(?);"
+	rows, err := db.Query(query, user.ID, group)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return false, errors.New("Group not found")
+	}
+	var owner int
+	err = rows.Scan(&owner)
+	if err != nil {
+		return false, err
+	}
+	return owner == user.ID, nil
+}*/
+
+func (user User) GetMembers(group string) ([]Member, error) {
+	var rows *sql.Rows
+	var err error
+	query := "SELECT b.Name, b.UserID FROM member a " +
+		 "INNER JOIN user b ON a.userID=b.userID " +
+		 "INNER JOIN groups c ON a.groupID=c.groupID " +
+		 "WHERE c.name = ?"
+	rows, err = db.Query(query, group)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var members []Member
+	for rows.Next() {
+		var m = Member{}
+		err = rows.Scan(&m.Name, &m.UserID)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+	return members, nil
+}
+
 func GetPublicRepo() ([]Repo, error) {
 	rows, err := db.Query("SELECT b.name, a.repoID, a.userID, a.name, " +
 			      "a.creation, a.public, a.description " +
@@ -463,7 +733,7 @@ func GetPublicRepo() ([]Repo, error) {
 
 func IsRepoPublic(repo string, username string) (bool, error) {
 	rows, err := db.Query("SELECT a.public FROM repo a " +
-			      "INNER JOIN user b ON a.userID=b.userID " +
+			      "INNER JOIN user b ON a.userID = b.userID " +
 			      "WHERE UPPER(a.name) LIKE UPPER(?) " +
 			      "AND UPPER(b.name) LIKE UPPER(?)",
 			      repo, username)

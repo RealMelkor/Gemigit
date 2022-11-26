@@ -1,0 +1,7 @@
+=>/account Go back
+
+# Groups
+
+{{ range .Groups -}}
+=>/account/groups/{{.Name}} {{ .Name }} {{if .Description }} - {{ .Description }} {{end }}
+{{ end -}}

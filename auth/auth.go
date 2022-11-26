@@ -4,6 +4,7 @@ import (
 	"errors"
 	"gemigit/config"
 	"gemigit/db"
+	"gemigit/access"
 	"time"
 )
 
@@ -14,12 +15,16 @@ func Decrease() {
 	for {
 		userAttempts = make(map[string]int)
 		clientAttempts = make(map[string]int)
-		time.Sleep(time.Duration(config.Cfg.Protection.Reset) * time.Second)
+		time.Sleep(time.Duration(config.Cfg.Protection.Reset) *
+			   time.Second)
 		db.DisconnectTimeout()
 	}
 }
 
-func Connect(username string, password string, signature string, ip string) error {
+// Check if credential are valid then add client signature
+// as a connected user
+func Connect(username string, password string,
+	     signature string, ip string) error {
 	attempts, b := userAttempts[username]
 	if b {
 		if attempts < config.Cfg.Protection.Account {
@@ -41,12 +46,24 @@ func Connect(username string, password string, signature string, ip string) erro
 	} else {
 		clientAttempts[ip] = 1
 	}
-	b, err := db.Login(username, password, signature)
+	err := access.Login(username, password)
 	if err != nil {
 		return err
 	}
-	if !b {
-		return errors.New("wrong username or password")
+
+	user, err := db.FetchUser(username, signature)
+	if err == nil {
+		db.SetUser(signature, user)
+		return nil
 	}
+	if !config.Cfg.Ldap.Enabled {
+		return err
+	}
+	db.Register(username, "")
+	user, err = db.FetchUser(username, signature)
+	if err != nil {
+		return err
+	}
+	db.SetUser(signature, user)
 	return nil
 }

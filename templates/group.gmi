@@ -1,0 +1,22 @@
+=>/account/groups Go back
+
+# {{ .Group }}
+{{if .Owner -}}
+=>/account/groups/{{.Group}}/add Add user
+=>/account/groups/{{.Group}}/desc Set description
+=>/account/groups/{{.Group}}/delete Delete group
+
+{{else}}
+=>/account/groups/{{.Group}}/leave Leave group
+
+{{end -}}
+
+## Members
+
+{{ range .Members -}}
+* {{ .Name }}
+{{if $.Owner -}}
+=>/account/groups/{{$.Group}}/kick/{{.Name}} Remove {{ .Name }}
+
+{{end -}}
+{{ end -}}
