@@ -1,0 +1,12 @@
+## Refs
+
+### Branches
+
+{{ range .Branches -}}
+* {{.Name}}, {{.Info}}
+{{ end }}
+### Tags
+
+{{ range .Tags -}}
+* {{.Name}}, {{.Info}}
+{{ end -}}

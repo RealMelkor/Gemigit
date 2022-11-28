@@ -1,0 +1,10 @@
+=>/ Go back
+
+# Public repositories
+
+{{ range . -}} 
+=>/repo/{{.Username}}/{{.Name}} {{.Name}} by {{.Username}}
+{{if .Description -}}
+> {{ .Description }}
+{{end -}}
+{{ end -}}

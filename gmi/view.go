@@ -1,6 +1,7 @@
 package gmi
 
 import (
+	"errors"
 	"bytes"
 	"io"
 	"fmt"
@@ -17,6 +18,16 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
+func execTemplate(t *template.Template, data interface{}) (string, error) {
+	var b bytes.Buffer
+	err := t.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return "", err
+	}
+	return b.String(), nil
+}
+
 const (
 	pageLog = iota
 	pageFiles
@@ -28,6 +39,11 @@ const (
 var mainPage *template.Template
 var accountPage *template.Template
 var repoPage *template.Template
+var repoLog *template.Template
+var repoFiles *template.Template
+var repoRefs *template.Template
+var repoLicense *template.Template
+var repoReadme *template.Template
 var repoPublicPage *template.Template
 var groupListPage *template.Template
 var groupMembersPage *template.Template
@@ -45,6 +61,26 @@ func LoadTemplate() error {
 		return err
 	}
 	repoPage, err = template.ParseFiles("templates/repo.gmi")
+	if err != nil {
+		return err
+	}
+	repoLog, err = template.ParseFiles("templates/repo_log.gmi")
+	if err != nil {
+		return err
+	}
+	repoFiles, err = template.ParseFiles("templates/repo_files.gmi")
+	if err != nil {
+		return err
+	}
+	repoRefs, err = template.ParseFiles("templates/repo_refs.gmi")
+	if err != nil {
+		return err
+	}
+	repoLicense, err = template.ParseFiles("templates/repo_license.gmi")
+	if err != nil {
+		return err
+	}
+	repoReadme, err = template.ParseFiles("templates/repo_readme.gmi")
 	if err != nil {
 		return err
 	}
@@ -261,6 +297,116 @@ type branch struct {
 	Info string
 }
 
+func showRepoLogs(name string, author string) (string, error) {
+	ret, err := repo.GetCommits(name, author)
+	if err != nil {
+		log.Println(err.Error())
+		return "", errors.New("Corrupted repository")
+	}
+	if ret == nil {
+		return "", nil
+	} 
+	commits := []commit{}
+	err = ret.ForEach(func(c *object.Commit) error {
+		info := c.Hash.String() + ", by " + c.Author.Name + " on " +
+			c.Author.When.Format("2006-01-02 15:04:05")
+		commits = append(commits, commit{Info: info,
+						 Message: c.Message})
+		return nil
+	})
+	return execTemplate(repoLog, commits)
+}
+
+func showRepoFiles(name string, author string) (string, error) {
+	ret, err := repo.GetFiles(name, author)
+	if err != nil {
+		log.Println(err.Error())
+		return "", errors.New("Corrupted repository")
+	}
+	if ret == nil {
+		return "", nil
+	} 
+	files := []file{}
+	err = ret.ForEach(func(f *object.File) error {
+		info := f.Mode.String() + " " + f.Name +
+			" " + strconv.Itoa(int(f.Size))
+		files = append(files, file{Info: info,
+					   Hash: f.Blob.Hash.String()})
+		return nil
+	})
+	return execTemplate(repoFiles, files)
+}
+
+func showRepoRefs(name string, author string) (string, error) {
+	refs, err := repo.GetRefs(name, author)
+	if err != nil {
+		log.Println(err)
+		return "", errors.New("Corrupted repository")
+	}
+	if refs == nil {
+		return "", nil
+	}
+	branches := []branch{}
+	tags := []branch{}
+	err = refs.ForEach(func(c *plumbing.Reference) error {
+		if c.Type().String() != "hash-reference" ||
+		   c.Name().IsRemote() {
+			return nil
+		}
+		var b branch
+		b.Name = c.Name().String()
+		b.Name = b.Name[strings.LastIndex(b.Name, "/") + 1:]
+		b.Info = "last commit on "
+
+		commit, err := repo.GetCommit(name, author, c.Hash())
+		if err != nil {
+			b.Info = "failed to fetch commit"
+		} else {
+			when := commit.Author.When
+			str := fmt.Sprintf(
+				"%d-%02d-%02d %02d:%02d:%02d",
+				when.Year(), int(when.Month()),
+				when.Day(), when.Hour(),
+				when.Minute(), when.Second())
+			b.Info += str + " by " + commit.Author.Name
+		}
+		if c.Name().IsBranch() {
+			branches = append(branches, b)
+		} else {
+			tags = append(tags, b)
+		}
+		return nil
+	})
+	refs.Close()
+	data := struct {
+		Branches []branch
+		Tags []branch
+	}{
+		branches,
+		tags,
+	}
+	return execTemplate(repoRefs, data)
+}
+
+func showRepoLicense(name string, author string) (string, error) {
+	content, err := showRepoFile(author, name, "LICENSE")
+	if err != nil {
+		return "", errors.New("No license found")
+	}
+	return execTemplate(repoLicense, content)
+}
+
+func showRepoReadme(name string, author string) (string, error) {
+	content, err := showRepoFile(author, name, "README.gmi")
+	if err != nil {
+		content, err = showRepoFile(author, name, "README")
+	}
+	if err != nil {
+		return "", errors.New("No readme found")
+	}
+	return execTemplate(repoReadme, content)
+}
+
 func showRepo(c gig.Context, page int, owner bool) (error) {
 	author, name, err := getRepo(c, owner)
 	if err != nil {
@@ -288,110 +434,22 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 				   "Private repository")
 	}
 
-	isEmpty := false
 	content := ""
-	commits := []commit{}
-	files := []file{}
-	branches := []branch{}
-	tags := []branch{}
 	switch page {
 	case pageLog:
-		ret, err := repo.GetCommits(name, author)
-		if err != nil {
-			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest,
-					   "Corrupted repository")
-		}
-		if ret == nil {
-			isEmpty = true
-			break
-		} 
-		err = ret.ForEach(func(c *object.Commit) error {
-			info := c.Hash.String() + ", by " + c.Author.Name +
-				" on " +
-				c.Author.When.Format("2006-01-02 15:04:05")
-			commits = append(commits,
-					 commit{Info: info,
-					 	Message: c.Message})
-			return nil
-		})
+		content, err = showRepoLogs(name, author)
 	case pageFiles:
-		ret, err := repo.GetFiles(name, author)
-		if err != nil {
-			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest,
-					   "Corrupted repository")
-		}
-		if ret == nil {
-			isEmpty = true
-			break
-		} 
-		err = ret.ForEach(func(f *object.File) error {
-			info := f.Mode.String() + " " + f.Name +
-				" " + strconv.Itoa(int(f.Size))
-			files = append(files,
-					file{Info: info,
-					Hash: f.Blob.Hash.String()})
-			return nil
-		})
+		content, err = showRepoFiles(name, author)
 	case pageRefs:
-		refs, err := repo.GetRefs(name, author)
-		if err != nil {
-			log.Println(err)
-			return c.NoContent(gig.StatusBadRequest,
-					   "Corrupted repository")
-		}
-		if refs == nil {
-			isEmpty = true
-			break
-		}
-		err = refs.ForEach(func(c *plumbing.Reference) error {
-			if c.Type().String() != "hash-reference" ||
-			   c.Name().IsRemote() {
-				return nil
-			}
-			var b branch
-			b.Name = c.Name().String()
-			name = name[strings.LastIndex(name, "/") + 1:]
-			b.Info = "last commit on "
-
-			commit, err := repo.GetCommit(name, author, c.Hash())
-			if err != nil {
-				b.Info = "failed to fetch commit"
-			} else {
-				when := commit.Author.When
-				str := fmt.Sprintf(
-					"%d-%02d-%02d %02d:%02d:%02d",
-					when.Year(), int(when.Month()),
-					when.Day(), when.Hour(),
-					when.Minute(), when.Second())
-				b.Info += str + " by " + commit.Author.Name
-			}
-			if c.Name().IsBranch() {
-				branches = append(branches, b)
-			} else {
-				tags = append(tags, b)
-			}
-			return nil
-		})
-		refs.Close()
+		content, err = showRepoRefs(name, author)
 	case pageLicense:
-		content, err = showRepoFile(author, name, "LICENSE")
-		if err != nil {
-			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest,
-					   "Not license found")
-		}
+		content, err = showRepoLicense(name, author)
 	case pageReadme:
-		content, err = showRepoFile(author, name, "README.gmi")
-		if err != nil {
-			content, err = showRepoFile(author, name, "README")
-		}
-		if err != nil {
-			log.Println(err.Error())
-			return c.NoContent(gig.StatusBadRequest,
-					   "Not readme found")
-		}
+		content, err = showRepoReadme(name, author)
+	}
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest,
+				   "Invalid repository")
 	}
 	
 	data := struct {
@@ -403,37 +461,17 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		Public bool
 		HasReadme bool
 		HasLicense bool
-		Log bool
-		Files bool
-		Refs bool
-		Readme bool
-		License bool
-		Empty bool
-		Commits []commit
-		Tags []branch
-		Branches []branch
-		FileList []file
 		Content string
 	}{
-		Public: public,
 		Protocol: protocol,
 		Domain: config.Cfg.Git.Domain,
 		User: author,
 		Description: desc,
 		Repo: name,
+		Public: public,
 		HasReadme: hasFile(name, author, "README.gmi") ||
 			   hasFile(name, author, "README"),
 		HasLicense: hasFile(name, author, "LICENSE"),
-		Log: page == pageLog,
-		Readme: page == pageReadme,
-		License: page == pageLicense,
-		Files: page == pageFiles,
-		Refs: page == pageRefs,
-		Commits: commits,
-		Tags: tags,
-		Branches: branches,
-		FileList: files,
-		Empty: isEmpty,
 		Content: content,
 	}
 	var b bytes.Buffer
@@ -457,7 +495,7 @@ func PublicList(c gig.Context) (error) {
 				   "Internal error, "+err.Error())
 	}
 	var b bytes.Buffer
-	publicRepoList.Execute(&b, repos)
+	err = publicRepoList.Execute(&b, repos)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
@@ -485,7 +523,7 @@ func PublicAccount(c gig.Context) error {
 		repos,
 	}
 	var b bytes.Buffer
-	publicAccount.Execute(&b, data)
+	err = publicAccount.Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())

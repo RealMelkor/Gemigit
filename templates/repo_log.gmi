@@ -1,0 +1,6 @@
+## Commits
+
+{{ range . -}}
+> {{ .Info }}
+* {{ .Message }}
+{{ end }}

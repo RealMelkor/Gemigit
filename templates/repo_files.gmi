@@ -1,0 +1,5 @@
+## Files
+
+{{ range . -}}
+=>files/{{.Hash}} {{.Info}}
+{{ end -}}

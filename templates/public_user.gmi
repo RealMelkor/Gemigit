@@ -1,0 +1,16 @@
+=>/repo Go back
+
+# {{ .Name }}
+{{if .Description -}}
+> {{ .Description }}
+
+{{end -}}
+
+## Repositories
+
+{{ range .Repositories -}} 
+=>/repo/{{$.Name}}/{{.Name}} {{.Name}}
+{{if .Description -}}
+> {{ .Description }}
+{{end -}}
+{{ end -}}
