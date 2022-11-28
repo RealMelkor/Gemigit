@@ -1,4 +1,4 @@
-package main
+package gmi
 
 import (
 	"bytes"
@@ -31,8 +31,10 @@ var repoPage *template.Template
 var repoPublicPage *template.Template
 var groupListPage *template.Template
 var groupMembersPage *template.Template
+var publicRepoList *template.Template
+var publicAccount *template.Template
 
-func loadTemplate() error {
+func LoadTemplate() error {
 	var err error
 	mainPage, err = template.ParseFiles("templates/index.gmi")
 	if err != nil {
@@ -58,6 +60,15 @@ func loadTemplate() error {
 	if err != nil {
 		return err
 	}
+	publicRepoList, err =
+		template.ParseFiles("templates/public_repo_list.gmi")
+	if err != nil {
+		return err
+	}
+	publicAccount, err = template.ParseFiles("templates/public_user.gmi")
+	if err != nil {
+		return err
+	}
 	log.Println("Templates loaded")
 	return nil
 }
@@ -78,7 +89,7 @@ func showRepoFile(user string, reponame string, file string) (string, error) {
         return string(buf), nil
 }
 
-func showIndex(c gig.Context) (error) {
+func ShowIndex(c gig.Context) (error) {
 	_, connected := db.GetUser(c.CertHash())
 	data := struct {
 		Title string
@@ -98,7 +109,7 @@ func showIndex(c gig.Context) (error) {
 	return c.Gemini(b.String())
 }
 
-func showAccount(c gig.Context) (error) {
+func ShowAccount(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
 		return c.NoContent(gig.StatusBadRequest,
@@ -134,7 +145,7 @@ func showAccount(c gig.Context) (error) {
 	return c.Gemini(b.String())
 }
 
-func showGroups(c gig.Context) (error) {
+func ShowGroups(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
 		return c.NoContent(gig.StatusBadRequest,
@@ -160,7 +171,7 @@ func showGroups(c gig.Context) (error) {
 	return c.Gemini(b.String())
 }
 
-func showMembers(c gig.Context) (error) {
+func ShowMembers(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
 		return c.NoContent(gig.StatusBadRequest,
@@ -250,23 +261,7 @@ type branch struct {
 	Info string
 }
 
-func getPage(param string) (int) {
-	switch param {
-	case "":
-		return pageLog
-	case "files":
-		return pageFiles
-	case "refs":
-		return pageRefs
-	case "readme":
-		return pageReadme
-	case "license":
-		return pageLicense
-	}
-	return -1;
-}
-
-func showRepo(c gig.Context, param string, owner bool) (error) {
+func showRepo(c gig.Context, page int, owner bool) (error) {
 	author, name, err := getRepo(c, owner)
 	if err != nil {
 		log.Println(err.Error())
@@ -299,7 +294,6 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 	files := []file{}
 	branches := []branch{}
 	tags := []branch{}
-	page := getPage(param)
 	switch page {
 	case pageLog:
 		ret, err := repo.GetCommits(name, author)
@@ -453,4 +447,49 @@ func showRepo(c gig.Context, param string, owner bool) (error) {
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
 	}
 	return c.Gemini(b.String())
+}
+
+func PublicList(c gig.Context) (error) {
+	repos, err := db.GetPublicRepo()
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Internal error, "+err.Error())
+	}
+	var b bytes.Buffer
+	publicRepoList.Execute(&b, repos)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
+}
+
+func PublicAccount(c gig.Context) error {
+	user, err := db.GetPublicUser(c.Param("user"))
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	repos, err := user.GetRepos(true)
+	if err != nil {
+		return c.NoContent(gig.StatusTemporaryFailure,
+				   "Invalid account, " + err.Error())
+	}
+	data := struct {
+		Name string
+		Description string
+		Repositories []db.Repo
+	}{
+		user.Name,
+		user.Description,
+		repos,
+	}
+	var b bytes.Buffer
+	publicAccount.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
+
 }

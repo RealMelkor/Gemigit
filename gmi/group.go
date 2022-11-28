@@ -1,9 +1,7 @@
-package main
+package gmi
 
 import (
-	//"gemigit/config"
 	"gemigit/db"
-
 	"github.com/pitr/gig"
 )
 
@@ -28,7 +26,7 @@ func isGroupOwner(c gig.Context) (int, error) {
 	return groupID, nil
 }
 
-func setGroupDesc(c gig.Context) error {
+func SetGroupDesc(c gig.Context) error {
 	query, err := c.QueryString()
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
@@ -50,7 +48,7 @@ func setGroupDesc(c gig.Context) error {
 			   "/account/groups/" + c.Param("group"))
 }
 
-func deleteGroup(c gig.Context) error {
+func DeleteGroup(c gig.Context) error {
 	name, err := c.QueryString()
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest,
@@ -75,7 +73,7 @@ func deleteGroup(c gig.Context) error {
 	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups")
 }
 
-func leaveGroup(c gig.Context) (error) {
+func LeaveGroup(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
         if !exist {
                 return c.NoContent(gig.StatusBadRequest,
@@ -100,7 +98,7 @@ func leaveGroup(c gig.Context) (error) {
 	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups")
 }
 
-func rmFromGroup(c gig.Context) (error) {
+func RmFromGroup(c gig.Context) (error) {
 	groupID, err := isGroupOwner(c)
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
@@ -126,7 +124,7 @@ func rmFromGroup(c gig.Context) (error) {
 			   "/account/groups/" + c.Param("group"))
 }
 
-func addToGroup(c gig.Context) (error) {
+func AddToGroup(c gig.Context) (error) {
 	query, err := c.QueryString()
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
