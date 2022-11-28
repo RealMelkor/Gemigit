@@ -136,7 +136,7 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	if err := gmi.LoadTemplate(); err != nil {
+	if err := gmi.LoadTemplate(config.Cfg.Gemini.Templates); err != nil {
 		log.Fatalln(err.Error())
 	}
 

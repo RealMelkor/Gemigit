@@ -18,14 +18,15 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
-func execTemplate(t *template.Template, data interface{}) (string, error) {
+func execTemplate(template string, data interface{}) (string, error) {
+	t := templates.Lookup(template)
 	var b bytes.Buffer
 	err := t.Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return "", err
 	}
-	return b.String(), nil
+	return strings.TrimRight(b.String(), "\n"), nil
 }
 
 const (
@@ -36,72 +37,25 @@ const (
 	pageReadme
 )
 
-var mainPage *template.Template
-var accountPage *template.Template
-var repoPage *template.Template
-var repoLog *template.Template
-var repoFiles *template.Template
-var repoRefs *template.Template
-var repoLicense *template.Template
-var repoReadme *template.Template
-var repoPublicPage *template.Template
-var groupListPage *template.Template
-var groupMembersPage *template.Template
-var publicRepoList *template.Template
-var publicAccount *template.Template
+var templates *template.Template
 
-func LoadTemplate() error {
+func LoadTemplate(dir string) error {
 	var err error
-	mainPage, err = template.ParseFiles("templates/index.gmi")
-	if err != nil {
-		return err
-	}
-	accountPage, err = template.ParseFiles("templates/account.gmi")
-	if err != nil {
-		return err
-	}
-	repoPage, err = template.ParseFiles("templates/repo.gmi")
-	if err != nil {
-		return err
-	}
-	repoLog, err = template.ParseFiles("templates/repo_log.gmi")
-	if err != nil {
-		return err
-	}
-	repoFiles, err = template.ParseFiles("templates/repo_files.gmi")
-	if err != nil {
-		return err
-	}
-	repoRefs, err = template.ParseFiles("templates/repo_refs.gmi")
-	if err != nil {
-		return err
-	}
-	repoLicense, err = template.ParseFiles("templates/repo_license.gmi")
-	if err != nil {
-		return err
-	}
-	repoReadme, err = template.ParseFiles("templates/repo_readme.gmi")
-	if err != nil {
-		return err
-	}
-	repoPublicPage, err = template.ParseFiles("templates/public_repo.gmi")
-	if err != nil {
-		return err
-	}
-	groupListPage, err = template.ParseFiles("templates/group_list.gmi")
-	if err != nil {
-		return err
-	}
-	groupMembersPage, err = template.ParseFiles("templates/group.gmi")
-	if err != nil {
-		return err
-	}
-	publicRepoList, err =
-		template.ParseFiles("templates/public_repo_list.gmi")
-	if err != nil {
-		return err
-	}
-	publicAccount, err = template.ParseFiles("templates/public_user.gmi")
+	templates, err = template.ParseFiles(
+				dir + "/index.gmi",
+				dir + "/account.gmi",
+				dir + "/repo.gmi",
+				dir + "/repo_log.gmi",
+				dir + "/repo_files.gmi",
+				dir + "/repo_refs.gmi",
+				dir + "/repo_license.gmi",
+				dir + "/repo_readme.gmi",
+				dir + "/public_repo.gmi",
+				dir + "/group_list.gmi",
+				dir + "/group.gmi",
+				dir + "/public_list.gmi",
+				dir + "/public_user.gmi",
+			  )
 	if err != nil {
 		return err
 	}
@@ -137,7 +91,7 @@ func ShowIndex(c gig.Context) (error) {
 		Connected: connected,
 	}
 	var b bytes.Buffer
-	err := mainPage.Execute(&b, data)
+	err := templates.Lookup("index.gmi").Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
@@ -173,7 +127,7 @@ func ShowAccount(c gig.Context) (error) {
 		RepositoriesAccess: nil,
 	}
 	var b bytes.Buffer
-	err = accountPage.Execute(&b, data)
+	err = templates.Lookup("account.gmi").Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
@@ -199,7 +153,7 @@ func ShowGroups(c gig.Context) (error) {
 		Groups: groups,
 	}
 	var b bytes.Buffer
-	err = groupListPage.Execute(&b, data)
+	err = templates.Lookup("group_list.gmi").Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
@@ -245,7 +199,7 @@ func ShowMembers(c gig.Context) (error) {
 		Description: desc,
 	}
 	var b bytes.Buffer
-	err = groupMembersPage.Execute(&b, data)
+	err = templates.Lookup("group_members").Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
@@ -314,7 +268,7 @@ func showRepoLogs(name string, author string) (string, error) {
 						 Message: c.Message})
 		return nil
 	})
-	return execTemplate(repoLog, commits)
+	return execTemplate("repo_log.gmi", commits)
 }
 
 func showRepoFiles(name string, author string) (string, error) {
@@ -334,7 +288,7 @@ func showRepoFiles(name string, author string) (string, error) {
 					   Hash: f.Blob.Hash.String()})
 		return nil
 	})
-	return execTemplate(repoFiles, files)
+	return execTemplate("repo_files.gmi", files)
 }
 
 func showRepoRefs(name string, author string) (string, error) {
@@ -385,7 +339,7 @@ func showRepoRefs(name string, author string) (string, error) {
 		branches,
 		tags,
 	}
-	return execTemplate(repoRefs, data)
+	return execTemplate("repo_refs.gmi", data)
 }
 
 func showRepoLicense(name string, author string) (string, error) {
@@ -393,7 +347,7 @@ func showRepoLicense(name string, author string) (string, error) {
 	if err != nil {
 		return "", errors.New("No license found")
 	}
-	return execTemplate(repoLicense, content)
+	return execTemplate("repo_license.gmi", content)
 }
 
 func showRepoReadme(name string, author string) (string, error) {
@@ -404,7 +358,7 @@ func showRepoReadme(name string, author string) (string, error) {
 	if err != nil {
 		return "", errors.New("No readme found")
 	}
-	return execTemplate(repoReadme, content)
+	return execTemplate("repo_readme.gmi", content)
 }
 
 func showRepo(c gig.Context, page int, owner bool) (error) {
@@ -476,9 +430,9 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 	}
 	var b bytes.Buffer
 	if owner {
-		err = repoPage.Execute(&b, data)
+		err = templates.Lookup("repo.gmi").Execute(&b, data)
 	} else {
-		err = repoPublicPage.Execute(&b, data)
+		err = templates.Lookup("public_repo.gmi").Execute(&b, data)
 	}
 	if err != nil {
 		log.Println(err.Error())
@@ -495,7 +449,7 @@ func PublicList(c gig.Context) (error) {
 				   "Internal error, "+err.Error())
 	}
 	var b bytes.Buffer
-	err = publicRepoList.Execute(&b, repos)
+	err = templates.Lookup("public_list.gmi").Execute(&b, repos)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
@@ -523,11 +477,10 @@ func PublicAccount(c gig.Context) error {
 		repos,
 	}
 	var b bytes.Buffer
-	err = publicAccount.Execute(&b, data)
+	err = templates.Lookup("public_user.gmi").Execute(&b, data)
 	if err != nil {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
 	}
 	return c.Gemini(b.String())
-
 }
