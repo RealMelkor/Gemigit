@@ -66,6 +66,7 @@ func logging(next http.Handler) http.Handler {
 
 func basicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		readOnly := false
 		params := strings.Split(r.URL.Path[1:], "/")
 		if len(params) < 2 {
 			renderNotFound(w)
@@ -73,6 +74,7 @@ func basicAuth(next http.Handler) http.Handler {
 		}
 		if strings.Contains(r.URL.Path, "git-upload-pack") || 
 		   strings.Contains(r.URL.RawQuery, "git-upload-pack") {
+			readOnly = true
 			b, err := db.IsRepoPublic(params[1], params[0])
 			if err != nil {
 				renderNotFound(w)
@@ -90,12 +92,13 @@ func basicAuth(next http.Handler) http.Handler {
 			return
 		}
 		if config.Cfg.Ldap.Enabled {
-			if err := access.Login(username, password);
-			   err != nil {
+			err := access.Login(username, password)
+			if err != nil {
 				log.Println(err.Error())
 				renderUnauthorized(w)
 				return
 			}
+			
 		} else {
 			err := db.CheckAuth(username, password)
 			if err != nil {
@@ -103,6 +106,19 @@ func basicAuth(next http.Handler) http.Handler {
 				renderUnauthorized(w)
 				return
 			}
+		}
+		var err error
+		if readOnly {
+			err = access.HasReadAccess(params[1], params[0],
+						   username)
+		} else {
+			err = access.HasWriteAccess(params[1], params[0],
+						    username)
+		}
+		if err != nil {
+			log.Println(err.Error())
+			renderUnauthorized(w)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})

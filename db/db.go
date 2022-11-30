@@ -389,6 +389,25 @@ func GetUserID(name string) (int, error) {
 	return id, nil
 }
 
+func GetRepoID(repo string, userID int) (int, error) {
+	rows, err := db.Query("SELECT repoID FROM repo " +
+			      "WHERE UPPER(?) = UPPER(name) AND userID = ?",
+			      repo, userID)
+	if err != nil {
+		return -1, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return -1, errors.New("Repository not found")
+	}
+	var id int
+	err = rows.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
 func GetGroupDesc(name string) (string, error) {
 	query := "SELECT description FROM groups WHERE UPPER(?) = UPPER(name);"
 	rows, err := db.Query(query, name)
@@ -582,7 +601,6 @@ func GetPublicUser(name string) (User, error) {
 	return User{}, errors.New(name + ", user not found")
 }
 
-// should check if user has already access
 func AddUserAccess(owner int, repoID int, user string) error {
 	userID, err := GetUserID(user)
 	if err != nil {
@@ -592,6 +610,18 @@ func AddUserAccess(owner int, repoID int, user string) error {
 		return errors.New(
 			"The repository owner already has maximum privilege")
 	}
+
+	rows, err := db.Query("SELECT privilege FROM access " +
+			      "WHERE repoID = ? AND userID = ? ",
+			      repoID, userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("The user already has access")
+	}
+
 	_, err = db.Exec("INSERT INTO access (repoID, userID, privilege) " +
 			 "VALUES(?, ?, 1)", repoID, userID)
 	if err != nil {
@@ -605,6 +635,18 @@ func AddGroupAccess(repoID int, group string) error {
 	if err != nil {
 		return err
 	}
+
+	rows, err := db.Query("SELECT privilege FROM access " +
+			      "WHERE repoID = ? AND groupID = ? ",
+			      repoID, groupID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("The group already has access")
+	}
+
 	_, err = db.Exec("INSERT INTO access (repoID, groupID, privilege) " +
 			 "VALUES(?, ?, 1)", repoID, groupID)
 	if err != nil {
@@ -628,7 +670,6 @@ func RemoveUserAccess(repoID int, userID int) error {
 		return errors.New("The user is not a contributor")
 	}
 	return nil
-
 }
 
 func RemoveGroupAccess(repoID int, groupID int) error {
@@ -679,20 +720,46 @@ func SetGroupAccess(repoID int, groupID int, privilege int) (error) {
 }
 
 func GetUserAccess(repoID int, userID int) (int, error) {
-	rows, err := db.Query("SELECT privilege FROM access " +
+	rows, err := db.Query("SELECT a.privilege FROM access a " +
+			      "INNER JOIN member m ON a.groupID = m.groupID " +
+			      "WHERE a.repoID = 3 AND m.userID = 2",
+			      repoID, userID)
+	if err != nil {
+		return -1, err
+	}
+	privilege := -1
+	for rows.Next() {
+		var p int
+		err = rows.Scan(&p)
+		if err != nil {
+			return -1, err
+		}
+		if p > privilege {
+			privilege = p
+		}
+	}
+	rows.Close()
+	if privilege == 2 {
+		return 2, nil
+	}
+
+	rows, err = db.Query("SELECT privilege FROM access " +
 			      "WHERE repoID = ? AND userID = ? ",
 			      repoID, userID)
 	if err != nil {
 		return -1, err
 	}
 	defer rows.Close()
-	if !rows.Next() {
+	if !rows.Next() && privilege == -1 {
 		return -1, errors.New("The user is not a contributor")
 	}
-	var privilege int
-	err = rows.Scan(&privilege)
+	var p int
+	err = rows.Scan(&p)
 	if err != nil {
 		return -1, err
+	}
+	if privilege < p {
+		privilege = p
 	}
 	return privilege, nil
 }

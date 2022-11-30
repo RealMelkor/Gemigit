@@ -9,6 +9,12 @@ import (
 	ldap "github.com/go-ldap/ldap/v3"
 )
 
+const (
+	None = 0
+	Read = 1
+	Write = 2
+)
+
 var conn *ldap.Conn
 
 func Init() error {
@@ -41,4 +47,38 @@ func Login(name string, password string) (error) {
 		return err
 	}
 	return nil
+}
+
+func hasAccess(repo string, author string, user string, access int) error {
+	userID, err := db.GetUserID(user)
+	if err != nil {
+		return err
+	}
+	u, err := db.GetPublicUser(author)
+	if err != nil {
+		return err
+	}
+	r, err := u.GetRepo(repo)
+	if err != nil {
+		return err
+	}
+	if r.UserID == userID {
+		return nil
+	}
+	privilege, err := db.GetUserAccess(r.RepoID, userID)
+	if err != nil {
+		return err
+	}
+	if privilege < access {
+		return errors.New("Permission denied")
+	}
+	return nil
+}
+
+func HasWriteAccess(repo string, author string, user string) error {
+	return hasAccess(repo, author, user, Write)
+}
+
+func HasReadAccess(repo string, author string, user string) error {
+	return hasAccess(repo, author, user, Read)
 }
