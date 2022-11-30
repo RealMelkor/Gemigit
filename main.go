@@ -185,6 +185,22 @@ func main() {
 	secure.Handle("/repo/:repo/chdesc", gmi.ChangeRepoDesc)
 	secure.Handle("/repo/:repo/delrepo", gmi.DeleteRepo)
 
+	secure.Handle("/repo/:repo/access", gmi.ShowAccess)
+	secure.Handle("/repo/:repo/access/add", gmi.AddUserAccess)
+	secure.Handle("/repo/:repo/access/addg", gmi.AddGroupAccess)
+	secure.Handle("/repo/:repo/access/:user/first",
+		      gmi.UserAccessFirstOption)
+	secure.Handle("/repo/:repo/access/:user/second",
+		      gmi.UserAccessSecondOption)
+	secure.Handle("/repo/:repo/access/:group/g/first",
+		      gmi.GroupAccessFirstOption)
+	secure.Handle("/repo/:repo/access/:group/g/second",
+		      gmi.GroupAccessSecondOption)
+	secure.Handle("/repo/:repo/access/:user/kick",
+		      gmi.RemoveUserAccess)
+	secure.Handle("/repo/:repo/access/:group/g/kick",
+		      gmi.RemoveGroupAccess)
+
 	secure.Handle("/repo/:repo", gmi.RepoLog)
 	secure.Handle("/repo/:repo/license", gmi.RepoLicense)
 	secure.Handle("/repo/:repo/readme", gmi.RepoReadme)

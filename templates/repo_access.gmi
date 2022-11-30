@@ -1,0 +1,30 @@
+=>/account/repo/{{.Repo}} Go back
+
+# {{ .Repo }}
+
+=>/account/repo/{{.Repo}}/access/add Add user
+=>/account/repo/{{.Repo}}/access/addg Add group
+
+## Collaborators
+
+{{ range .Collaborators -}}
+* {{ .Name }} - Privilege : {{.Privilege | AccessPrivilege}}
+{{if $.Owner -}}
+=>/account/repo/{{$.Repo}}/access/{{.Name}}/first {{.Privilege | AccessFirst}}
+=>/account/repo/{{$.Repo}}/access/{{.Name}}/second {{.Privilege | AccessSecond}}
+=>/account/repo/{{$.Repo}}/access/{{.Name}}/kick Remove
+
+{{end -}}
+{{end -}}
+
+## Groups
+
+{{ range .Groups -}}
+* {{ .Name }} - Privilege : {{.Privilege | AccessPrivilege}}
+{{if $.Owner -}}
+=>/account/repo/{{$.Repo}}/access/{{.Name}}/g/first {{.Privilege | AccessFirst}}
+=>/account/repo/{{$.Repo}}/access/{{.Name}}/g/second {{.Privilege | AccessSecond}}
+=>/account/repo/{{$.Repo}}/access/{{.Name}}/g/kick Remove
+
+{{end -}}
+{{end -}}

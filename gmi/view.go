@@ -18,6 +18,17 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
+func execT(c gig.Context, template string, data interface{}) error {
+	t := templates.Lookup(template)
+	var b bytes.Buffer
+	err := t.Execute(&b, data)
+	if err != nil {
+		log.Println(err.Error())
+		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	}
+	return c.Gemini(b.String())
+}
+
 func execTemplate(template string, data interface{}) (string, error) {
 	t := templates.Lookup(template)
 	var b bytes.Buffer
@@ -41,21 +52,28 @@ var templates *template.Template
 
 func LoadTemplate(dir string) error {
 	var err error
-	templates, err = template.ParseFiles(
-				dir + "/index.gmi",
-				dir + "/account.gmi",
-				dir + "/repo.gmi",
-				dir + "/repo_log.gmi",
-				dir + "/repo_files.gmi",
-				dir + "/repo_refs.gmi",
-				dir + "/repo_license.gmi",
-				dir + "/repo_readme.gmi",
-				dir + "/public_repo.gmi",
-				dir + "/group_list.gmi",
-				dir + "/group.gmi",
-				dir + "/public_list.gmi",
-				dir + "/public_user.gmi",
-			  )
+
+	templates = template.New("gmi")
+	template.Must(templates.Funcs(template.FuncMap {
+		"AccessFirst": accessFirstOption,
+		"AccessSecond": accessSecondOption,
+		"AccessPrivilege": privilegeToString,
+	}).ParseFiles(
+		dir + "/index.gmi",
+		dir + "/account.gmi",
+		dir + "/repo.gmi",
+		dir + "/repo_log.gmi",
+		dir + "/repo_files.gmi",
+		dir + "/repo_refs.gmi",
+		dir + "/repo_license.gmi",
+		dir + "/repo_readme.gmi",
+		dir + "/repo_access.gmi",
+		dir + "/public_repo.gmi",
+		dir + "/group_list.gmi",
+		dir + "/group.gmi",
+		dir + "/public_list.gmi",
+		dir + "/public_user.gmi",
+	))
 	if err != nil {
 		return err
 	}
@@ -90,13 +108,7 @@ func ShowIndex(c gig.Context) (error) {
 		Registration: config.Cfg.Users.Registration,
 		Connected: connected,
 	}
-	var b bytes.Buffer
-	err := templates.Lookup("index.gmi").Execute(&b, data)
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
-	}
-	return c.Gemini(b.String())
+	return execT(c, "index.gmi", data)
 }
 
 func ShowAccount(c gig.Context) (error) {
@@ -126,13 +138,7 @@ func ShowAccount(c gig.Context) (error) {
 		Repositories: repoNames,
 		RepositoriesAccess: nil,
 	}
-	var b bytes.Buffer
-	err = templates.Lookup("account.gmi").Execute(&b, data)
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
-	}
-	return c.Gemini(b.String())
+	return execT(c, "account.gmi", data)
 }
 
 func ShowGroups(c gig.Context) (error) {
@@ -152,13 +158,7 @@ func ShowGroups(c gig.Context) (error) {
 	}{
 		Groups: groups,
 	}
-	var b bytes.Buffer
-	err = templates.Lookup("group_list.gmi").Execute(&b, data)
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
-	}
-	return c.Gemini(b.String())
+	return execT(c, "group_list.gmi", data)
 }
 
 func ShowMembers(c gig.Context) (error) {
@@ -168,9 +168,8 @@ func ShowMembers(c gig.Context) (error) {
 				   "Invalid username")
 	}
 	group := c.Param("group")
-	owner, err := user.IsInGroup(group)
+	isOwner, err := user.IsInGroup(group)
 	if err != nil {
-		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure,
 				   "Group not found")
 	}
@@ -187,24 +186,36 @@ func ShowMembers(c gig.Context) (error) {
 		return c.NoContent(gig.StatusTemporaryFailure,
 				   "Failed to fetch group description")
 	}
+
+	owner := ""
+	if isOwner {
+		owner = user.Name
+	} else {
+		m, err := db.GetGroupOwner(group)
+		if err != nil {
+			log.Println(err.Error())
+			return c.NoContent(gig.StatusTemporaryFailure,
+					   "Failed to fetch group owner")
+		}
+		owner = m.Name
+	}
+
 	data := struct {
 		Members []db.Member
-		Owner bool
+		MembersCount int
+		IsOwner bool
+		Owner string
 		Group string
 		Description string
 	}{
-		Group: group,
-		Owner: owner,
 		Members: members,
+		MembersCount: len(members),
+		IsOwner: isOwner,
+		Owner: owner,
+		Group: group,
 		Description: desc,
 	}
-	var b bytes.Buffer
-	err = templates.Lookup("group_members").Execute(&b, data)
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
-	}
-	return c.Gemini(b.String())
+	return execT(c, "group.gmi", data)
 }
 
 func getRepo(c gig.Context, owner bool) (string, string, error) {
@@ -428,17 +439,10 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		HasLicense: hasFile(name, author, "LICENSE"),
 		Content: content,
 	}
-	var b bytes.Buffer
 	if owner {
-		err = templates.Lookup("repo.gmi").Execute(&b, data)
-	} else {
-		err = templates.Lookup("public_repo.gmi").Execute(&b, data)
-	}
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
-	}
-	return c.Gemini(b.String())
+		return execT(c, "repo.gmi", data)
+	} 
+	return execT(c, "public_repo.gmi", data)
 }
 
 func PublicList(c gig.Context) (error) {
@@ -448,13 +452,7 @@ func PublicList(c gig.Context) (error) {
 		return c.NoContent(gig.StatusTemporaryFailure,
 				   "Internal error, "+err.Error())
 	}
-	var b bytes.Buffer
-	err = templates.Lookup("public_list.gmi").Execute(&b, repos)
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
-	}
-	return c.Gemini(b.String())
+	return execT(c, "public_list.gmi", repos)
 }
 
 func PublicAccount(c gig.Context) error {
@@ -476,11 +474,37 @@ func PublicAccount(c gig.Context) error {
 		user.Description,
 		repos,
 	}
-	var b bytes.Buffer
-	err = templates.Lookup("public_user.gmi").Execute(&b, data)
-	if err != nil {
-		log.Println(err.Error())
-		return c.NoContent(gig.StatusTemporaryFailure, err.Error())
+	return execT(c, "public_user.gmi", data)
+}
+
+func ShowAccess(c gig.Context) error {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest,
+				   "Invalid username")
 	}
-	return c.Gemini(b.String())
+	repo, err := user.GetRepo(c.Param("repo"))
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	access, err := db.GetRepoAccess(repo.RepoID)
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	groups, err := db.GetRepoGroupAccess(repo.RepoID)
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	data := struct {
+		Repo string
+		Collaborators []db.Access
+		Groups []db.Access
+		Owner bool
+	}{
+		Repo: repo.Name,
+		Collaborators: access,
+		Groups: groups,
+		Owner: true,
+	}
+	return execT(c, "repo_access.gmi", data)
 }
