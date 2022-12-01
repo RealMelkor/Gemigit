@@ -171,6 +171,7 @@ func main() {
 	}))
 
 	secure.Handle("", gmi.ShowAccount)
+	// groups management
 	secure.Handle("/groups", gmi.ShowGroups)
 	secure.Handle("/groups/:group", gmi.ShowMembers)
 	secure.Handle("/groups/:group/desc", gmi.SetGroupDesc)
@@ -179,12 +180,14 @@ func main() {
 	secure.Handle("/groups/:group/delete", gmi.DeleteGroup)
 	secure.Handle("/groups/:group/kick/:user", gmi.RmFromGroup)
 
+	// repository settings
 	secure.Handle("/repo/:repo/*", gmi.RepoFile)
 	secure.Handle("/repo/:repo/togglepublic", gmi.TogglePublic)
 	secure.Handle("/repo/:repo/chname", gmi.ChangeRepoName)
 	secure.Handle("/repo/:repo/chdesc", gmi.ChangeRepoDesc)
 	secure.Handle("/repo/:repo/delrepo", gmi.DeleteRepo)
 
+	// access management
 	secure.Handle("/repo/:repo/access", gmi.ShowAccess)
 	secure.Handle("/repo/:repo/access/add", gmi.AddUserAccess)
 	secure.Handle("/repo/:repo/access/addg", gmi.AddGroupAccess)
@@ -201,6 +204,7 @@ func main() {
 	secure.Handle("/repo/:repo/access/:group/g/kick",
 		      gmi.RemoveGroupAccess)
 
+	// repository view
 	secure.Handle("/repo/:repo", gmi.RepoLog)
 	secure.Handle("/repo/:repo/license", gmi.RepoLicense)
 	secure.Handle("/repo/:repo/readme", gmi.RepoReadme)
@@ -208,6 +212,7 @@ func main() {
 	secure.Handle("/repo/:repo/files", gmi.RepoFiles)
 	secure.Handle("/repo/:repo/files/:blob", gmi.RepoFileContent)
 
+	// user page
 	secure.Handle("/chdesc", gmi.ChangeDesc)
 	secure.Handle("/addrepo", gmi.AddRepo)
 	secure.Handle("/addgroup", gmi.AddGroup)

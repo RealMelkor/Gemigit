@@ -1,21 +1,22 @@
 package gmi
 
 import (
-	"errors"
 	"bytes"
-	"io"
+	"errors"
 	"fmt"
-	"strconv"
-	"strings"
+	"gemigit/access"
 	"gemigit/config"
 	"gemigit/db"
 	"gemigit/repo"
+	"io"
 	"log"
+	"strconv"
+	"strings"
 	"text/template"
 
-	"github.com/pitr/gig"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/pitr/gig"
 )
 
 func execT(c gig.Context, template string, data interface{}) error {
@@ -127,16 +128,17 @@ func ShowAccount(c gig.Context) (error) {
 			repoNames = append(repoNames, repo.Name)
 		}
 	}
+	accessRepos, err := db.HasReadAccessTo(user.ID)
 	data := struct {
 		Username string
 		Description string
 		Repositories []string
-		RepositoriesAccess []string
+		RepositoriesAccess []db.Repo
 	}{
 		Username: user.Name,
 		Description: user.Description,
 		Repositories: repoNames,
-		RepositoriesAccess: nil,
+		RepositoriesAccess: accessRepos,
 	}
 	return execT(c, "account.gmi", data)
 }
@@ -230,6 +232,15 @@ func getRepo(c gig.Context, owner bool) (string, string, error) {
         } else {
                 username = c.Param("user")
                 ret, err := db.IsRepoPublic(c.Param("repo"), c.Param("user"))
+		if !ret {
+			user, exist := db.GetUser(c.CertHash())
+			if exist {
+				err := access.HasReadAccess(c.Param("repo"),
+							    c.Param("user"),
+							    user.Name)
+				ret = err == nil
+			}
+		}
                 if !ret || err != nil {
                         return "", "", c.NoContent(gig.StatusBadRequest,
 				"No repository called " + c.Param("repo") +
@@ -393,10 +404,6 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		log.Println(err.Error())
 		return c.NoContent(gig.StatusTemporaryFailure,
 				   "Repository not found")
-	}
-	if !public && !owner {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Private repository")
 	}
 
 	content := ""

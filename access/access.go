@@ -65,7 +65,7 @@ func hasAccess(repo string, author string, user string, access int) error {
 	if r.UserID == userID {
 		return nil
 	}
-	privilege, err := db.GetUserAccess(r.RepoID, userID)
+	privilege, err := db.GetAccess(r.RepoID, userID)
 	if err != nil {
 		return err
 	}

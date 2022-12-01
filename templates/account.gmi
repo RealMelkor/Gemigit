@@ -18,5 +18,5 @@
 {{ end }}
 ## Repositories
 {{ range .RepositoriesAccess -}} 
-=>/account/repo/{{.Name}} {{.Name}} by {{.Author}}
+=>/repo/{{.Username}}/{{.Name}} {{.Name}} by {{.Username}}
 {{ end -}}
