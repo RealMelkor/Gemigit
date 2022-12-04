@@ -63,7 +63,8 @@ func main() {
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
-			err = db.Init(config.Cfg.Database)
+			err = db.Init(config.Cfg.Database.Type,
+				      config.Cfg.Database.Url, false)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -92,7 +93,8 @@ func main() {
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
-			err = db.Init(config.Cfg.Database)
+			err = db.Init(config.Cfg.Database.Type,
+				      config.Cfg.Database.Url, false)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -109,7 +111,8 @@ func main() {
 				fmt.Println(os.Args[0] + " rmuser <username>")
 				return
 			}
-			err := db.Init(config.Cfg.Database)
+			err := db.Init(config.Cfg.Database.Type,
+				       config.Cfg.Database.Url, false)
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
@@ -121,12 +124,21 @@ func main() {
 			fmt.Println("User " + os.Args[2] +
 				    " deleted successfully")
 			return
+		case "init":
+			err := db.Init(config.Cfg.Database.Type,
+				       config.Cfg.Database.Url, true)
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			defer db.Close()
+			return
 		}
 		fmt.Println("usage: " + os.Args[0] + " [command]")
 		fmt.Println("commands :")
-		fmt.Println("\tchpasswd <username>")
-		fmt.Println("\tregister <username>")
-		fmt.Println("\trmuser <username>")
+		fmt.Println("\tchpasswd <username> - Change user password")
+		fmt.Println("\tregister <username> - Create user")
+		fmt.Println("\trmuser <username> - Remove user")
+		fmt.Println("\tinit - Initialize database")
 		return
 	}
 
@@ -140,7 +152,8 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	err := db.Init(config.Cfg.Database)
+	err := db.Init(config.Cfg.Database.Type,
+		       config.Cfg.Database.Url, false)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -234,14 +247,7 @@ func main() {
 	public.Handle("/:user/:repo/files", gmi.PublicFiles)
 	public.Handle("/:user/:repo/files/:blob", gmi.PublicFileContent)
 
-	g.PassAuthLoginHandle("/login",
-	func(user, pass, sig string, c gig.Context) (string, error) {
-		err := auth.Connect(user, pass, sig, c.IP())
-		if err != nil {
-			return "", err
-		}
-		return "/account", nil
-	})
+	g.PassAuthLoginHandle("/login", gmi.Login)
 
 	if config.Cfg.Users.Registration {
 		g.Handle("/register", gmi.Register)

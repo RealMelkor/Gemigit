@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type Repo struct {
@@ -51,10 +52,11 @@ type Access struct {
 }
 
 var users = make(map[string]User)
+var certificates = make(map[int]string)
 
 func userAlreadyExist(username string) (bool, error) {
 	rows, err := db.Query(
-		"select * from user WHERE UPPER(name) LIKE UPPER(?)",
+		"SELECT * FROM user WHERE UPPER(name) LIKE UPPER(?)",
 		username)
 	if err != nil {
 		return true, err
@@ -97,42 +99,36 @@ func groupAlreadyExist(group string) (error) {
 	return nil
 }
 
-func DisconnectTimeout() {
-	if config.Cfg.Users.Session == 0 {
-		return
-	}
-	for k, v := range users {
-		if time.Now().Unix()-v.Connection.Unix() >
-		   int64(config.Cfg.Users.Session) {
-			delete(users, k)
-		}
-	}
-}
-
 var db *sql.DB
 
-func Init(path string) error {
+func Init(dbType string, path string, create bool) error {
 
-	new := false
-	file, err := os.Open(path)
-	if os.IsNotExist(err) {
-		file, err := os.Create(path)
-		if err != nil {
-			return err
+	if !create && dbType == "sqlite3" {
+		file, err := os.Open(path)
+		if os.IsNotExist(err) {
+			file, err := os.Create(path)
+			if err != nil {
+				return err
+			}
+			file.Close()
+			log.Println("Creating database " + path)
+			create = true
+		} else {
+			file.Close()
+			log.Println("Loading database " + path)
 		}
-		file.Close()
-		log.Println("Creating database " + path)
-		new = true
-	} else {
-		file.Close()
-		log.Println("Loading database " + path)
 	}
 
-	db, err = sql.Open("sqlite3", path)
+	var err error
+	db, err = sql.Open(dbType, path)
 	if err != nil {
 		return err
 	}
-	if new {
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
+	if create {
 		return createTable(db)
 	}
 	return nil
@@ -143,41 +139,47 @@ func Close() error {
 }
 
 func createTable(db *sql.DB) error {
+	autoincrement := "AUTO_INCREMENT"
+	if config.Cfg.Database.Type == "sqlite3" {
+		autoincrement = "AUTOINCREMENT"
+	}
+
 	userTable := `CREATE TABLE user (
-		"userID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"name" TEXT UNIQUE NOT NULL,
-		"password" TEXT,
-		"description" TEXT DEFAULT "",
-		"creation" INTEGER NOT NULL
+		userID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
+		name TEXT UNIQUE NOT NULL,
+		password TEXT,
+		certificate TEXT,
+		description TEXT DEFAULT "",
+		creation INTEGER NOT NULL
 	);`
 
 	groupTable := `CREATE TABLE groups (
-		"groupID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"owner" INTEGER NOT NULL,
-		"name" TEXT UNIQUE NOT NULL,
-		"description" TEXT DEFAULT "",
-		"creation" INTEGER NOT NULL
+		groupID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
+		owner INTEGER NOT NULL,
+		name TEXT UNIQUE NOT NULL,
+		description TEXT DEFAULT "",
+		creation INTEGER NOT NULL
 	);`
 
 	memberTable := `CREATE TABLE member (
-		"groupID" INTEGER NOT NULL,
-		"userID" INTEGER NOT NULL
+		groupID INTEGER NOT NULL,
+		userID INTEGER NOT NULL
 	);`
 
 	accessTable := `CREATE TABLE access (
-		"repoID" INTEGER NOT NULL,
-		"groupID" INTEGER,
-		"userID" INTEGER,
-		"privilege" INTEGER NOT NULL
+		repoID INTEGER NOT NULL,
+		groupID INTEGER,
+		userID INTEGER,
+		privilege INTEGER NOT NULL
 	);`
 
 	repoTable := `CREATE TABLE repo (
-		"repoID" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"userID" INTEGER NOT NULL,
-		"name" TEXT NOT NULL,
-		"description" TEXT DEFAULT "",
-		"creation" INTEGER NOT NULL,
-		"public" INTEGER DEFAULT 0
+		repoID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
+		userID INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT DEFAULT "",
+		creation INTEGER NOT NULL,
+		public INTEGER DEFAULT 0
 	);`
 
 	_, err := db.Exec(userTable)
@@ -214,8 +216,8 @@ func createTable(db *sql.DB) error {
 }
 
 func CheckAuth(username string, password string) (error) {
-	rows, err := db.Query("select name, password from user" +
-			      " WHERE UPPER(name) LIKE UPPER(?)",
+	rows, err := db.Query("SELECT name, password FROM user " +
+			      "WHERE UPPER(name) LIKE UPPER(?)",
 			      username)
 	if err != nil {
 		return err
@@ -236,8 +238,8 @@ func CheckAuth(username string, password string) (error) {
 }
 
 func FetchUser(username string, signature string) (User, error) {
-	query := "select userID, name, description, creation " +
-		 "from user WHERE UPPER(name) LIKE UPPER(?)"
+	query := "SELECT userID, name, description, creation " +
+		 "FROM user WHERE UPPER(name) LIKE UPPER(?)"
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return User{}, err
@@ -245,10 +247,9 @@ func FetchUser(username string, signature string) (User, error) {
 	defer rows.Close()
 	next := rows.Next()
 	if !next {
-		return User{}, errors.New("")
+		return User{}, errors.New("User not found")
 	}
 	var u = User{}
-	var dPassword string
 	if config.Cfg.Ldap.Enabled {
 		err = rows.Scan(&u.ID,
 				&u.Name,
@@ -258,8 +259,7 @@ func FetchUser(username string, signature string) (User, error) {
 		err = rows.Scan(&u.ID,
 				&u.Name,
 				&u.Description,
-				&u.Registration,
-				&dPassword)
+				&u.Registration)
 	}
 	if err != nil {
 		return User{}, err
@@ -288,22 +288,26 @@ func Register(username string, password string) error {
 		return errors.New("this name is already taken")
 	}
 
+	unixTime := "UNIX_TIMESTAMP()"
+	if config.Cfg.Database.Type == "sqlite3" {
+		unixTime = "strftime('%s', 'now')"
+	}
 	if !config.Cfg.Ldap.Enabled {
 		hash, err := hashPassword(password)
 		if err != nil {
 			return err
 		}
 
-		_, err = db.Exec("insert into user(name,password,creation) " +
-				 "VALUES(?,?,strftime('%s', 'now'));",
+		_, err = db.Exec("INSERT INTO user(name,password,creation) " +
+				 "VALUES(?, ?, " + unixTime + ");",
 				 username, hash)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	_, err := db.Exec("insert into user(name,creation) " +
-			  "VALUES(?,strftime('%s', 'now'));", username)
+	_, err := db.Exec("INSERT INTO user(name,creation) " +
+			  "VALUES(?, " + unixTime + ")", username)
 	if err != nil {
 		return err
 	}
@@ -324,7 +328,7 @@ func (user User) CreateRepo(repo string, signature string) error {
 		return err
 	}
 
-	_, err = db.Exec("insert into repo " +
+	_, err = db.Exec("INSERT INTO repo " +
 			 "(userID, name, creation, public, description) " +
 			 "VALUES(?, ?, strftime('%s', 'now'), 0, \"\")",
 			 user.ID, repo)
@@ -525,9 +529,9 @@ func DeleteGroup(group int) error {
 }
 
 func DeleteUser(username string) error {
-	statement, err := db.Exec("delete FROM repo " +
+	statement, err := db.Exec("DELETE FROM repo " +
 				  "WHERE userID in " +
-				  "(SELECT userID from user " +
+				  "(SELECT userID FROM user " +
 				  "where UPPER(name) LIKE UPPER(?))",
 				  username)
 	if err != nil {
@@ -537,7 +541,7 @@ func DeleteUser(username string) error {
 	if err != nil {
 		return err
 	}
-	statement, err = db.Exec("delete FROM user WHERE name=?", username)
+	statement, err = db.Exec("DELETE FROM user WHERE name=?", username)
 	if err != nil {
 		return err
 	}
@@ -555,7 +559,7 @@ func (user User) DeleteRepo(repo string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
 		return err
 	}
-	statement, err := db.Exec("delete FROM repo WHERE name=? AND userID=?",
+	statement, err := db.Exec("DELETE FROM repo WHERE name=? AND userID=?",
 				  repo, user.ID)
 	if err != nil {
 		return err
@@ -571,34 +575,62 @@ func (user User) DeleteRepo(repo string, signature string) error {
 	return nil
 }
 
-func SetUser(signature string, user User) {
+func SetUser(signature string, user User) error {
+	_, err := db.Exec("UPDATE user SET certificate = ? WHERE userID = ?",
+			  signature, user.ID)
+	if err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	delete(users, certificates[user.ID])
 	users[signature] = user
+	certificates[user.ID] = signature
+	return nil
 }
 
 func GetUser(signature string) (User, bool) {
 	user, b := users[signature]
-	return user, b
+	// should update description
+	if b {
+		return user, b
+	}
+	rows, err := db.Query("SELECT userID, name, description, creation " +
+			      "FROM user WHERE certificate = ?",
+			      signature)
+	if err != nil {
+		return User{}, false
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return User{}, false
+	}
+	err = rows.Scan(&user.ID, &user.Name, &user.Description,
+			&user.Registration)
+	if err != nil {
+		return User{}, false
+	}
+	return user, true
 }
 
 func GetPublicUser(name string) (User, error) {
-	rows, err := db.Query("select userID, name, description, creation " +
-			      "from user WHERE UPPER(name) LIKE UPPER(?)",
+	rows, err := db.Query("SELECT userID, name, description, creation " +
+			      "FROM user WHERE UPPER(name) LIKE UPPER(?)",
 			      name)
 	if err != nil {
 		return User{}, err
 	}
 	defer rows.Close()
-	if rows.Next() {
-		var u = User{}
-		err = rows.Scan(&u.ID, &u.Name,
-				&u.Description,
-				&u.Registration)
-		if err != nil {
-			return User{}, err
-		}
-		return u, nil
+	if !rows.Next() {
+		return User{}, errors.New(name + ", user not found")
 	}
-	return User{}, errors.New(name + ", user not found")
+	var u = User{}
+	err = rows.Scan(&u.ID, &u.Name,
+			&u.Description,
+			&u.Registration)
+	if err != nil {
+		return User{}, err
+	}
+	return u, nil
 }
 
 func AddUserAccess(owner int, repoID int, user string) error {
@@ -1219,7 +1251,7 @@ func GetRepoDesc(name string, username string) (string, error) {
 }
 
 func (user *User) UpdateDescription() error {
-	rows, err := db.Query("select description from user WHERE userID=?",
+	rows, err := db.Query("SELECT description FROM user WHERE userID=?",
 			      user.ID)
 	if err != nil {
 		return err

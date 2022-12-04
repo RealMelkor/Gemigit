@@ -2,6 +2,7 @@ package gmi
 
 import (
 	"gemigit/db"
+	"gemigit/auth"
 	"github.com/pitr/gig"
 )
 
@@ -48,4 +49,12 @@ func RegisterConfirm(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	return c.Gemini(textRegistrationSuccess)
+}
+
+func Login(user, pass, sig string, c gig.Context) (string, error) {
+	err := auth.Connect(user, pass, sig, c.IP())
+	if err != nil {
+		return "", err
+	}
+	return "/account", nil
 }

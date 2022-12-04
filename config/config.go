@@ -6,7 +6,10 @@ var Cfg Config
 
 type Config struct {
 	Title		string `validate:"required"`
-	Database	string `validate:"required"`
+	Database struct {
+		Type		string `validate:"required"`
+		Url		string `validate:"required"`
+	}
 	Gemini struct {
 		Certificate	string `validate:"required"`
 		Key		string `validate:"required"`
@@ -28,7 +31,6 @@ type Config struct {
 	}
 	Users struct {
 		Registration	bool   `validate:"required"`
-		Session		int    `validate:"required"`
 	}
 	Protection struct {
 		Ip	int    `validate:"required"`

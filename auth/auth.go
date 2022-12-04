@@ -17,7 +17,6 @@ func Decrease() {
 		clientAttempts = make(map[string]int)
 		time.Sleep(time.Duration(config.Cfg.Protection.Reset) *
 			   time.Second)
-		db.DisconnectTimeout()
 	}
 }
 
@@ -59,7 +58,10 @@ func Connect(username string, password string,
 	if !config.Cfg.Ldap.Enabled {
 		return err
 	}
-	db.Register(username, "")
+	err = db.Register(username, "")
+	if err != nil {
+		return err
+	}
 	user, err = db.FetchUser(username, signature)
 	if err != nil {
 		return err
