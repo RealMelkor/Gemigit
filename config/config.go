@@ -20,8 +20,15 @@ type Config struct {
 	Git struct {
 		Https	bool
 		Domain	string	`validate:"required"`
+		Remote struct {
+			Enabled bool
+			Url	string
+			Address string
+			Key	string
+		}
 		Address string  `validate:"required"`
 		Port	int	`validate:"required"`
+		Key	string
 	}
 	Ldap struct {
 		Enabled		bool

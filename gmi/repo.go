@@ -128,13 +128,13 @@ func ChangeRepoName(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest,
 				   "Invalid username")
 	}
-	if err := user.ChangeRepoName(c.Param("repo"),
-				      newname, c.CertHash());
+	// should check if repo exist and if the new name is free
+	if err := repo.ChangeRepoDir(c.Param("repo"), user.Name, newname);
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	if err := repo.ChangeRepoDir(c.Param("repo"),
-				     user.Name, newname);
+	if err := user.ChangeRepoName(c.Param("repo"), newname, c.CertHash());
+
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
@@ -185,12 +185,13 @@ func DeleteRepo(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest,
 				   "Cannot find username")
 	}
-	if err := user.DeleteRepo(name, c.CertHash());
+	// check if repo exist
+	if err := repo.RemoveRepo(name, user.Name);
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest,
 				   err.Error())
 	}
-	if err := repo.RemoveRepo(name, user.Name);
+	if err := user.DeleteRepo(name, c.CertHash());
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest,
 				   err.Error())
