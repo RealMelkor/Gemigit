@@ -52,7 +52,6 @@ type Access struct {
 }
 
 var users = make(map[string]User)
-var certificates = make(map[int]string)
 
 func userAlreadyExist(username string) (bool, error) {
 	rows, err := db.Query(
@@ -148,7 +147,6 @@ func createTable(db *sql.DB) error {
 		userID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
 		name TEXT UNIQUE NOT NULL,
 		password TEXT,
-		certificate TEXT,
 		description TEXT DEFAULT "",
 		creation INTEGER NOT NULL
 	);`
@@ -164,6 +162,11 @@ func createTable(db *sql.DB) error {
 	memberTable := `CREATE TABLE member (
 		groupID INTEGER NOT NULL,
 		userID INTEGER NOT NULL
+	);`
+
+	certificateTable := `CREATE TABLE certificate (
+		userID INTEGER NOT NULL,
+		hash TEXT UNIQUE NOT NULL
 	);`
 
 	accessTable := `CREATE TABLE access (
@@ -199,6 +202,12 @@ func createTable(db *sql.DB) error {
 		return err
 	}
 	log.Println("Member table created")
+
+	_, err = db.Exec(certificateTable)
+	if err != nil {
+		return err
+	}
+	log.Println("Certificate table created")
 
 	_, err = db.Exec(accessTable)
 	if err != nil {
@@ -576,15 +585,14 @@ func (user User) DeleteRepo(repo string, signature string) error {
 }
 
 func SetUser(signature string, user User) error {
-	_, err := db.Exec("UPDATE user SET certificate = ? WHERE userID = ?",
-			  signature, user.ID)
+	_, err := db.Exec("INSERT INTO certificate (userID, hash) " +
+			  "VALUES (?, ?)", user.ID, signature)
 	if err != nil {
 		log.Println(err.Error())
 		return err
 	}
-	delete(users, certificates[user.ID])
+	user.Signature = signature
 	users[signature] = user
-	certificates[user.ID] = signature
 	return nil
 }
 
@@ -594,9 +602,9 @@ func GetUser(signature string) (User, bool) {
 	if b {
 		return user, b
 	}
-	rows, err := db.Query("SELECT userID, name, description, creation " +
-			      "FROM user WHERE certificate = ?",
-			      signature)
+	rows, err := db.Query("SELECT a.userID, name, description, creation " +
+			      "FROM user a INNER JOIN certificate b ON " +
+			      "a.userID = b.userID WHERE hash = ?", signature)
 	if err != nil {
 		return User{}, false
 	}
@@ -609,6 +617,8 @@ func GetUser(signature string) (User, bool) {
 	if err != nil {
 		return User{}, false
 	}
+	user.Signature = signature
+	users[signature] = user
 	return user, true
 }
 
@@ -1182,6 +1192,10 @@ func (user User) Disconnect(signature string) error {
 		return err
 	}
 	delete(users, signature)
+	_, err := db.Exec("DELETE FROM certificate WHERE hash = ?", signature)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
