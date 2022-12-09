@@ -2,7 +2,6 @@ package repo
 
 import (
 	"errors"
-	"log"
 	"gemigit/config"
 
 	"github.com/pitr/gig"
@@ -27,11 +26,10 @@ func request(url string) error {
 	responseHeader, err := reader.ReadString('\n')
 	parts := strings.Fields(responseHeader)
 	status, err := strconv.Atoi(parts[0][0:1])
-	meta := parts[1]
+	meta := strings.Join(parts[1:], " ")
 	if status == 20 {
 		return nil
 	}
-	log.Println(parts)
 	return errors.New(meta)
 }
 

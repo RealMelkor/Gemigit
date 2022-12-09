@@ -238,6 +238,14 @@ func main() {
 
 	secure.Handle("/disconnect", gmi.Disconnect)
 
+	if config.Cfg.Git.Key != "" {
+		api := g.Group("/api")
+		api.Handle("/api/:key/init/:username/:repo", repo.ApiInit)
+		api.Handle("/api/:key/rm/:username/:repo", repo.ApiRemove)
+		api.Handle("/api/:key/mv/:username/:repo/:newname",
+			   repo.ApiRename)
+	}
+
 	public := g.Group("/repo")
 	public.Handle("", gmi.PublicList)
 	public.Handle("/:user/:repo/*", gmi.PublicFile)
