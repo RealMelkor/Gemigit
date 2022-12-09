@@ -162,9 +162,11 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	go httpgit.Listen("repos/",
-			  config.Cfg.Git.Address,
-			  config.Cfg.Git.Port)
+	if !config.Cfg.Git.Remote.Enabled {
+		go httpgit.Listen("repos/",
+				  config.Cfg.Git.Address,
+				  config.Cfg.Git.Port)
+	}
 	go auth.Decrease()
 
 	gig.DefaultLoggerConfig.Format = "${time_rfc3339} - ${remote_ip} | " +

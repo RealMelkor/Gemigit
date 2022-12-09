@@ -52,6 +52,7 @@ type Access struct {
 }
 
 var users = make(map[string]User)
+var unixTime string
 
 func userAlreadyExist(username string) (bool, error) {
 	rows, err := db.Query(
@@ -126,6 +127,10 @@ func Init(dbType string, path string, create bool) error {
 	err = db.Ping()
 	if err != nil {
 		return err
+	}
+	unixTime = "UNIX_TIMESTAMP()"
+	if config.Cfg.Database.Type == "sqlite3" {
+		unixTime = "strftime('%s', 'now')"
 	}
 	if create {
 		return createTable(db)
@@ -297,10 +302,6 @@ func Register(username string, password string) error {
 		return errors.New("this name is already taken")
 	}
 
-	unixTime := "UNIX_TIMESTAMP()"
-	if config.Cfg.Database.Type == "sqlite3" {
-		unixTime = "strftime('%s', 'now')"
-	}
 	if !config.Cfg.Ldap.Enabled {
 		hash, err := hashPassword(password)
 		if err != nil {
@@ -339,7 +340,7 @@ func (user User) CreateRepo(repo string, signature string) error {
 
 	_, err = db.Exec("INSERT INTO repo " +
 			 "(userID, name, creation, public, description) " +
-			 "VALUES(?, ?, strftime('%s', 'now'), 0, \"\")",
+			 "VALUES(?, ?, " + unixTime + ", 0, \"\")",
 			 user.ID, repo)
 	if err != nil {
 		return err
@@ -364,7 +365,7 @@ func (user User) CreateGroup(group string, signature string) error {
 
 	rows, err := db.Exec("INSERT INTO groups " +
 			     "(owner, name, description, creation) " +
-			     "VALUES(?, ?, \"\", strftime('%s', 'now'))",
+			     "VALUES(?, ?, \"\", " + unixTime + ")",
 			     user.ID, group)
 	if err != nil {
 		return err
