@@ -11,6 +11,8 @@ A self-hosted gemini Git service
 * Basic bruteforce protection
 * User groups
 * Privilege system for read/write access
+* Support for sqlite and mysql databases
+* Support stateless mode for multiple instances and load balancing
 
 ## Setup
 
