@@ -72,6 +72,9 @@ func basicAuth(next http.Handler) http.Handler {
 			renderNotFound(w)
 			return
 		}
+		if params[1] == "root#" && params[2] == config.Cfg.Git.Key {
+			next.ServeHTTP(w, r)
+		}
 		if strings.Contains(r.URL.Path, "git-upload-pack") || 
 		   strings.Contains(r.URL.RawQuery, "git-upload-pack") {
 			readOnly = true

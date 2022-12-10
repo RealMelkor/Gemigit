@@ -25,7 +25,7 @@ func request(url string) error {
 	reader := bufio.NewReader(conn)
 	responseHeader, err := reader.ReadString('\n')
 	parts := strings.Fields(responseHeader)
-	status, err := strconv.Atoi(parts[0][0:1])
+	status, err := strconv.Atoi(parts[0][0:2])
 	meta := strings.Join(parts[1:], " ")
 	if status == 20 {
 		return nil

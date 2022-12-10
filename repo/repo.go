@@ -6,6 +6,8 @@ import (
 	"gemigit/db"
 	"io"
 	"os"
+	"log"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,15 +15,20 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/storage"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 )
 
 var rootPath string
-var cache storage.Storer
-var repositories = make(map[string]*git.Repository)
+type repo struct {
+	memory storage.Storer
+	repository *git.Repository
+	update time.Time
+}
+var repositories = make(map[string]repo)
 
 func Init(path string) error {
 	if config.Cfg.Git.Remote.Enabled {
-		cache = memory.NewStorage()
 		return nil
 	}
 	rootPath = path
@@ -48,31 +55,74 @@ func RemoveRepo(name string, username string) error {
 }
 
 func getRepo(name string, username string) (*git.Repository, error) {
-	var repo *git.Repository
+	var repository *git.Repository
 	var err error
 	url := username + "/" + name
 	if !config.Cfg.Git.Remote.Enabled {
-		repo, err = git.PlainOpen(rootPath + "/" + url)
-	} else {
-		var exist bool
-		repo, exist = repositories[url]
-		if exist {
-			err = repo.Fetch(&git.FetchOptions{})
-			if err != nil && err != git.NoErrAlreadyUpToDate {
+		repository, err = git.PlainOpen(rootPath + "/" + url)
+		return repository, err
+	}
+	var exist bool
+	r, exist := repositories[url]
+	log.Println(r, exist)
+	if exist {
+		log.Println(time.Now().Sub(r.update).Seconds())
+		if time.Now().Sub(r.update).Seconds() < 15 {
+			return r.repository, transport.ErrEmptyRemoteRepository
+		}
+		r.update = time.Now()
+		repositories[url] = r
+		log.Println(r.repository, url)
+		if r.repository == nil {
+			r.memory = memory.NewStorage()
+			r.repository, err = git.Clone(r.memory, nil,
+			&git.CloneOptions {
+				URL: config.Cfg.Git.Remote.Url + "/" + url,
+				Auth: &http.BasicAuth {
+					Username: "root#",
+					Password: config.Cfg.Gemini.Key,
+				},
+			})
+			log.Println(r.repository, err)
+			if err != nil {
 				return nil, err
 			}
-			return repo, nil
+			repositories[url] = r
 		}
-		repo, err = git.Clone(cache, nil,
-		&git.CloneOptions{
-			URL: config.Cfg.Git.Remote.Url + "/" + url,
+		err = r.repository.Fetch(&git.FetchOptions {
+			Auth: &http.BasicAuth {
+				Username: "root#",
+				Password: config.Cfg.Gemini.Key,
+			},
 		})
+		log.Println("fetch", err)
 		if err != nil {
 			return nil, err
 		}
-		repositories[url] = repo
+		repositories[url] = r
+		return r.repository, nil
 	}
-	return repo, err
+	r = repo{}
+	r.memory = memory.NewStorage()
+	r.update = time.Now()
+	r.repository, err = git.Clone(r.memory, nil,
+	&git.CloneOptions{
+		URL: config.Cfg.Git.Remote.Url + "/" + url,
+		Auth: &http.BasicAuth {
+			Username: "root#",
+			Password: config.Cfg.Gemini.Key,
+		},
+	})
+	log.Println(err, transport.ErrEmptyRemoteRepository)
+	if err == transport.ErrEmptyRemoteRepository {
+		r.repository = nil
+		r.memory = nil
+	} else if err != nil {
+		return nil, err
+	}
+	repositories[url] = r
+	repository = r.repository
+	return r.repository, err
 }
 
 func GetCommit(name string, username string,

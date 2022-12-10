@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/pitr/gig"
 )
 
@@ -275,13 +276,13 @@ type branch struct {
 
 func showRepoLogs(name string, author string) (string, error) {
 	ret, err := repo.GetCommits(name, author)
+	if ret == nil || err == transport.ErrEmptyRemoteRepository {
+		return "", nil
+	}
 	if err != nil {
 		log.Println(err.Error())
 		return "", errors.New("Corrupted repository")
 	}
-	if ret == nil {
-		return "", nil
-	} 
 	commits := []commit{}
 	err = ret.ForEach(func(c *object.Commit) error {
 		info := c.Hash.String() + ", by " + c.Author.Name + " on " +
@@ -295,13 +296,13 @@ func showRepoLogs(name string, author string) (string, error) {
 
 func showRepoFiles(name string, author string) (string, error) {
 	ret, err := repo.GetFiles(name, author)
+	if ret == nil || err == transport.ErrEmptyRemoteRepository {
+		return "", nil
+	}
 	if err != nil {
 		log.Println(err.Error())
 		return "", errors.New("Corrupted repository")
 	}
-	if ret == nil {
-		return "", nil
-	} 
 	files := []file{}
 	err = ret.ForEach(func(f *object.File) error {
 		info := f.Mode.String() + " " + f.Name +
@@ -315,12 +316,12 @@ func showRepoFiles(name string, author string) (string, error) {
 
 func showRepoRefs(name string, author string) (string, error) {
 	refs, err := repo.GetRefs(name, author)
+	if refs == nil || err == transport.ErrEmptyRemoteRepository {
+		return "", nil
+	}
 	if err != nil {
 		log.Println(err)
 		return "", errors.New("Corrupted repository")
-	}
-	if refs == nil {
-		return "", nil
 	}
 	branches := []branch{}
 	tags := []branch{}
