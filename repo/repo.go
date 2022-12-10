@@ -16,7 +16,6 @@ import (
 	"github.com/go-git/go-git/v5/storage"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 )
 
 var rootPath string
@@ -64,65 +63,42 @@ func getRepo(name string, username string) (*git.Repository, error) {
 	}
 	var exist bool
 	r, exist := repositories[url]
-	log.Println(r, exist)
-	if exist {
-		log.Println(time.Now().Sub(r.update).Seconds())
-		if time.Now().Sub(r.update).Seconds() < 15 {
-			return r.repository, transport.ErrEmptyRemoteRepository
-		}
-		r.update = time.Now()
-		repositories[url] = r
-		log.Println(r.repository, url)
-		if r.repository == nil {
-			r.memory = memory.NewStorage()
-			r.repository, err = git.Clone(r.memory, nil,
-			&git.CloneOptions {
-				URL: config.Cfg.Git.Remote.Url + "/" + url,
-				Auth: &http.BasicAuth {
-					Username: "root#",
-					Password: config.Cfg.Gemini.Key,
-				},
-			})
-			log.Println(r.repository, err)
-			if err != nil {
-				return nil, err
-			}
-			repositories[url] = r
-		}
-		err = r.repository.Fetch(&git.FetchOptions {
-			Auth: &http.BasicAuth {
-				Username: "root#",
-				Password: config.Cfg.Gemini.Key,
-			},
-		})
-		log.Println("fetch", err)
-		if err != nil {
-			return nil, err
-		}
-		repositories[url] = r
+	if !exist {
+		r = repo{}
+	}
+	if exist && time.Now().Sub(r.update).Seconds() < 15 {
 		return r.repository, nil
 	}
-	r = repo{}
-	r.memory = memory.NewStorage()
 	r.update = time.Now()
-	r.repository, err = git.Clone(r.memory, nil,
-	&git.CloneOptions{
-		URL: config.Cfg.Git.Remote.Url + "/" + url,
+	repositories[url] = r
+	if r.repository == nil {
+		r.memory = memory.NewStorage()
+		r.repository, err = git.Clone(r.memory, nil,
+		&git.CloneOptions {
+			URL: config.Cfg.Git.Remote.Url + "/" + url,
+			Auth: &http.BasicAuth {
+				Username: "root#",
+				Password: config.Cfg.Git.Remote.Key,
+			},
+		})
+		if err != nil {
+			r.memory = nil
+			r.repository = nil
+		}
+		repositories[url] = r
+		return r.repository, err
+	}
+	err = r.repository.Fetch(&git.FetchOptions {
 		Auth: &http.BasicAuth {
 			Username: "root#",
-			Password: config.Cfg.Gemini.Key,
+			Password: config.Cfg.Git.Remote.Key,
 		},
 	})
-	log.Println(err, transport.ErrEmptyRemoteRepository)
-	if err == transport.ErrEmptyRemoteRepository {
-		r.repository = nil
-		r.memory = nil
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 	repositories[url] = r
-	repository = r.repository
-	return r.repository, err
+	return r.repository, nil
 }
 
 func GetCommit(name string, username string,
@@ -140,7 +116,7 @@ func GetCommit(name string, username string,
 
 func GetCommits(name string, username string) (object.CommitIter, error) {
 	repo, err := getRepo(name, username)
-	if err != nil {
+	if repo == nil || err != nil {
 		return nil, err
 	}
 	ref, err := repo.Head()
@@ -156,7 +132,7 @@ func GetCommits(name string, username string) (object.CommitIter, error) {
 
 func GetRefs(name string, username string) (storer.ReferenceIter, error) {
 	repo, err := getRepo(name, username)
-	if err != nil {
+	if repo == nil || err != nil {
 		return nil, err
 	}
 	_, err = repo.Head()
@@ -172,7 +148,7 @@ func GetRefs(name string, username string) (storer.ReferenceIter, error) {
 
 func getTree(name string, username string) (*object.Tree, error) {
 	repo, err := getRepo(name, username)
-	if err != nil {
+	if repo == nil || err != nil {
 		return nil, err
 	}
 	ref, err := repo.Head()
