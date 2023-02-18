@@ -2,5 +2,7 @@
 
 {{ range . -}}
 > {{ .Info }}
-* {{ .Message }}
+```
+{{ .Message }}
+```
 {{ end }}

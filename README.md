@@ -20,3 +20,13 @@ A self-hosted gemini Git service
 * Copy config.yaml into either /etc/gemigit, /usr/local/etc/gemigit or the working directory where Gemigit will be executed
 * Edit the config file to suit your needs
 * Execute gemigit
+
+## Demo
+
+You can try a public instance of Gemigit at this address gemini://gemini.rmf-dev.com using a Gemini client or with a [gemini web proxy][0]
+
+## Contact
+
+For inquiries about this software or the instance running at gemini://gemini.rmf-dev.com, you can contact the main maintainer of this project at : rawmonk@firemail.cc
+
+[0]: https://portal.mozz.us/gemini/gemini.rmf-dev.com/
