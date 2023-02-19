@@ -37,7 +37,7 @@ type Config struct {
 		Binding		string
 	}
 	Users struct {
-		Registration	bool   `validate:"required"`
+		Registration	bool
 	}
 	Protection struct {
 		Ip	int    `validate:"required"`
