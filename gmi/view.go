@@ -8,7 +8,7 @@ import (
 	"gemigit/config"
 	"gemigit/db"
 	"gemigit/repo"
-	"io"
+	io "gemigit/util"
 	"log"
 	"strconv"
 	"strings"

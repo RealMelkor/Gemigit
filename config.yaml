@@ -1,6 +1,6 @@
 title: "Gemigit" # title on the main page
 database:
-  type: "sqlite3" # supported : sqlite3, mysql
+  type: "sqlite" # supported : sqlite(doesn't require cgo), sqlite3, mysql
   url: "gemigit.db" # connection string or sqlite3 database path
 
 gemini:

@@ -20,7 +20,7 @@ import (
 	"github.com/pitr/gig"
 )
 
-const textRegistrationSuccess = 
+const textRegistrationSuccess =
 	"# Your registration was completed successfully\n\n" +
 	"=> /login Login now"
 

@@ -1,12 +1,12 @@
 package gmi
 
 import (
-	"io"
 	"strconv"
 	"strings"
 
         "gemigit/db"
         "gemigit/repo"
+	io "gemigit/util"
 
         "github.com/pitr/gig"
 	"github.com/gabriel-vasile/mimetype"

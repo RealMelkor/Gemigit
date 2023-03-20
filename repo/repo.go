@@ -4,7 +4,7 @@ import (
 	"errors"
 	"gemigit/config"
 	"gemigit/db"
-	"io"
+	io "gemigit/util"
 	"os"
 	"time"
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -103,7 +104,7 @@ var db *sql.DB
 
 func Init(dbType string, path string, create bool) error {
 
-	if !create && dbType == "sqlite3" {
+	if !create && (dbType == "sqlite3" || dbType == "sqlite") {
 		file, err := os.Open(path)
 		if os.IsNotExist(err) {
 			file, err := os.Create(path)
@@ -756,10 +757,7 @@ func SetGroupAccess(repoID int, groupID int, privilege int) (error) {
 	_, err := db.Exec("UPDATE access SET privilege = ? " +
 			  "WHERE repoID = ? AND groupID = ?",
 			  privilege, repoID, groupID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func HasReadAccessTo(userID int) ([]Repo, error) {
