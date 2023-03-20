@@ -16,13 +16,7 @@ func showFileContent(content string) string {
 	lines := strings.Split(content, "\n")
 	file := ""
 	for i, line := range lines {
-		number := strconv.Itoa(i)
-		space := 6 - len(number)
-		if space < 1 {
-			space = 1
-		}
-		file += number + strings.Repeat(" ", space)
-		file += line + "\n"
+		file += strconv.Itoa(i) + "\t" + line + "\n"
 	}
 	return strings.Replace(file, "%", "%%", -1)
 }
