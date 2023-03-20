@@ -1,0 +1,3 @@
+# Your registration was completed successfully
+
+=>/login Login now

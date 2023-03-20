@@ -104,7 +104,9 @@ var db *sql.DB
 
 func Init(dbType string, path string, create bool) error {
 
-	if !create && (dbType == "sqlite3" || dbType == "sqlite") {
+	isSqlite := dbType == "sqlite3" || dbType == "sqlite"
+
+	if !create && isSqlite {
 		file, err := os.Open(path)
 		if os.IsNotExist(err) {
 			file, err := os.Create(path)
@@ -130,7 +132,7 @@ func Init(dbType string, path string, create bool) error {
 		return err
 	}
 	unixTime = "UNIX_TIMESTAMP()"
-	if config.Cfg.Database.Type == "sqlite3" {
+	if isSqlite {
 		unixTime = "strftime('%s', 'now')"
 	}
 	if create {

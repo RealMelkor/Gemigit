@@ -70,6 +70,7 @@ func LoadTemplate(dir string) error {
 		dir + "/repo_license.gmi",
 		dir + "/repo_readme.gmi",
 		dir + "/repo_access.gmi",
+		dir + "/register_success.gmi",
 		dir + "/public_repo.gmi",
 		dir + "/group_list.gmi",
 		dir + "/group.gmi",

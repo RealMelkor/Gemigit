@@ -6,10 +6,6 @@ import (
 	"github.com/pitr/gig"
 )
 
-const textRegistrationSuccess =
-          "# Your registration was completed successfully\n\n" +
-          "=> /login Login now"
-
 func Register(c gig.Context) error {
 	cert := c.Certificate()
 	if cert == nil {
@@ -48,7 +44,11 @@ func RegisterConfirm(c gig.Context) error {
 	if err = db.Register(c.Param("name"), password); err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.Gemini(textRegistrationSuccess)
+	data, err := execTemplate("register_success.gmi", nil)
+	if err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	return c.Gemini(data)
 }
 
 func Login(user, pass, sig string, c gig.Context) (string, error) {

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 
 	"golang.org/x/crypto/ssh/terminal"
 
@@ -19,25 +17,6 @@ import (
 
 	"github.com/pitr/gig"
 )
-
-const textRegistrationSuccess =
-	"# Your registration was completed successfully\n\n" +
-	"=> /login Login now"
-
-func showFileContent(content string) string {
-	lines := strings.Split(content, "\n")
-	file := ""
-	for i, line := range lines {
-		number := strconv.Itoa(i)
-		space := 6 - len(number)
-		if space < 1 {
-			space = 1
-		} 
-		file += number + strings.Repeat(" ", space)
-		file += line + "\n"
-	}
-	return strings.Replace(file, "%", "%%", -1)
-}
 
 func main() {
 
