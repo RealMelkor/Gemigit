@@ -55,6 +55,11 @@ var templates *template.Template
 func LoadTemplate(dir string) error {
 	var err error
 
+	dirlen := len(dir)
+	if dirlen > 1 && dir[dirlen - 1] == '/' {
+		dir = dir[:dirlen - 1]
+	}
+
 	templates = template.New("gmi")
 	template.Must(templates.Funcs(template.FuncMap {
 		"AccessFirst": accessFirstOption,

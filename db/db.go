@@ -136,7 +136,7 @@ func Init(dbType string, path string, create bool) error {
 		unixTime = "strftime('%s', 'now')"
 	}
 	if create {
-		return createTable(db)
+		return createTable(db, isSqlite)
 	}
 	return nil
 }
@@ -145,9 +145,10 @@ func Close() error {
 	return db.Close()
 }
 
-func createTable(db *sql.DB) error {
+func createTable(db *sql.DB, isSqlite bool) error {
 	autoincrement := "AUTO_INCREMENT"
-	if config.Cfg.Database.Type == "sqlite3" {
+
+	if isSqlite {
 		autoincrement = "AUTOINCREMENT"
 	}
 
