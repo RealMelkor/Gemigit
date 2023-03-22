@@ -8,4 +8,6 @@
 =>/register Register
 {{ end -}}
 {{ end -}}
+{{ if .Public -}}
 =>/repo Public repositories
+{{ end }}

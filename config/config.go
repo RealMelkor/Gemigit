@@ -29,6 +29,7 @@ type Config struct {
 		Address string  `validate:"required"`
 		Port	int	`validate:"required"`
 		Key	string
+		Public	bool
 	}
 	Ldap struct {
 		Enabled		bool

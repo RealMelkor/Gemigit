@@ -155,14 +155,16 @@ func main() {
 	g.Use(gig.Recover())
 	g.Static("/static", "./static")
 
-	secure := g.Group("/account", gig.PassAuth(
-	func(sig string, c gig.Context) (string, error) {
-		_, b := db.GetUser(sig)
-		if !b {
-			return "/login", nil
-		}
-		return "", nil
-	}))
+	passAuth := gig.PassAuth(
+		func(sig string, c gig.Context) (string, error) {
+			_, b := db.GetUser(sig)
+			if !b {
+				return "/login", nil
+			}
+			return "", nil
+		})
+
+	secure := g.Group("/account", passAuth)
 
 	secure.Handle("", gmi.ShowAccount)
 	// groups management
@@ -225,7 +227,13 @@ func main() {
 			   repo.ApiRename)
 	}
 
-	public := g.Group("/repo")
+	var public *gig.Group
+	if config.Cfg.Git.Public {
+		public = g.Group("/repo")
+	} else {
+		public = g.Group("/repo", passAuth)
+	}
+
 	public.Handle("", gmi.PublicList)
 	public.Handle("/:user/:repo/*", gmi.PublicFile)
 	public.Handle("/:user", gmi.PublicAccount)

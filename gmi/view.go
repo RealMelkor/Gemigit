@@ -111,10 +111,12 @@ func ShowIndex(c gig.Context) (error) {
 		Title string
 		Registration bool
 		Connected bool
+		Public bool
 	}{
 		Title: config.Cfg.Title,
 		Registration: config.Cfg.Users.Registration,
 		Connected: connected,
+		Public: connected || config.Cfg.Git.Public,
 	}
 	return execT(c, "index.gmi", data)
 }
@@ -455,7 +457,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 	}
 	if owner {
 		return execT(c, "repo.gmi", data)
-	} 
+	}
 	return execT(c, "public_repo.gmi", data)
 }
 
