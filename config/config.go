@@ -40,9 +40,10 @@ type Config struct {
 		Registration	bool
 	}
 	Protection struct {
-		Ip	int    `validate:"required"`
-		Account	int    `validate:"required"`
-		Reset	int    `validate:"required"`
+		Ip		int    `validate:"required"`
+		Account		int    `validate:"required"`
+		Registration	int    `validate:"required"`
+		Reset		int    `validate:"required"`
 	}
 }
 

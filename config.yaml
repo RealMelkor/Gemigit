@@ -33,4 +33,5 @@ users:
 protection:
   ip: 10 # Maximum connection attempts before the ip is blocked
   account: 30 # Maximum connection attempts before the account is blocked
+  registration: 5 # Maximum number of registration per ip
   reset: 120 # Number of seconds before clearing the block on ip/accounts

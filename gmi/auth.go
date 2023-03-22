@@ -1,7 +1,6 @@
 package gmi
 
 import (
-	"gemigit/db"
 	"gemigit/auth"
 	"github.com/pitr/gig"
 )
@@ -41,7 +40,7 @@ func RegisterConfirm(c gig.Context) error {
 	if password == "" {
 		return c.NoContent(gig.StatusSensitiveInput, "Password")
 	}
-	if err = db.Register(c.Param("name"), password); err != nil {
+	if err = auth.Register(c.Param("name"), password, c.IP()); err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	data, err := execTemplate("register_success.gmi", nil)
