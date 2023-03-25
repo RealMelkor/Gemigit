@@ -19,7 +19,7 @@ var conn *ldap.Conn
 
 func Init() error {
 	if !config.Cfg.Ldap.Enabled {
-        	return nil
+		return nil
 	}
         l, err := ldap.DialURL(config.Cfg.Ldap.Url)
         if err != nil {
