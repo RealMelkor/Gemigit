@@ -1,3 +1,5 @@
+=>/account Go back
+
 # OTP
 {{if .Secret}}
 =>/account/otp/rm Remove 2FA
