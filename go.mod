@@ -11,6 +11,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/nulab/go-git-http-xfer v1.4.0
 	github.com/pitr/gig v0.9.8
+	github.com/pquerna/otp v1.4.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	modernc.org/sqlite v1.17.3
 )

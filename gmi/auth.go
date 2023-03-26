@@ -52,6 +52,10 @@ func RegisterConfirm(c gig.Context) error {
 
 func Login(user, pass, sig string, c gig.Context) (string, error) {
 	err := auth.Connect(user, pass, sig, c.IP())
+
+	if err != nil && err.Error() == "token required" {
+		return "/otp", nil
+	}
 	if err != nil {
 		return "", err
 	}

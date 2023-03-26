@@ -6,17 +6,21 @@ import (
 	"gemigit/db"
 	"gemigit/access"
 	"time"
+
+	"github.com/pquerna/otp/totp"
 )
 
 var userAttempts = make(map[string]int)
 var clientAttempts = make(map[string]int)
 var registrationAttempts = make(map[string]int)
+var loginToken = make(map[string]db.User)
 
 func Decrease() {
 	for {
 		userAttempts = make(map[string]int)
 		clientAttempts = make(map[string]int)
 		registrationAttempts = make(map[string]int)
+		loginToken = make(map[string]db.User)
 		time.Sleep(time.Duration(config.Cfg.Protection.Reset) *
 			   time.Second)
 	}
@@ -57,6 +61,10 @@ func Connect(username string, password string,
 
 	user, err := db.FetchUser(username, signature)
 	if err == nil {
+		if user.Secret != "" {
+			loginToken[signature] = user
+			return errors.New("token required")
+		}
 		db.SetUser(signature, user)
 		return nil
 	}
@@ -80,4 +88,17 @@ func Register(username string, password string, ip string) error {
 		return errors.New("too many registration attempts")
 	}
 	return db.Register(username, password)
+}
+
+func LoginOTP(signature string, code string) error {
+	user, exist := loginToken[signature]
+	if !exist {
+		return errors.New("invalid request")
+	}
+	if !totp.Validate(code, user.Secret) {
+		return errors.New("wrong code")
+	}
+	db.SetUser(signature, user)
+	delete(loginToken, signature)
+	return nil
 }

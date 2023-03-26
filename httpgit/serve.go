@@ -93,7 +93,7 @@ func basicAuth(next http.Handler) http.Handler {
 			renderUnauthorized(w)
 			return
 		}
-		/* root# password is empty by default,
+		/* The git key in the configuration file is empty by default,
 		   so that root# authentication is disabled by default.
 		   The root authentication is necessary to run instance in
 		   stateless mode. */

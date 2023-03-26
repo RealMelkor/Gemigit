@@ -81,6 +81,7 @@ func LoadTemplate(dir string) error {
 		dir + "/group.gmi",
 		dir + "/public_list.gmi",
 		dir + "/public_user.gmi",
+		dir + "/otp.gmi",
 	))
 	if err != nil {
 		return err
@@ -270,7 +271,7 @@ func hasFile(name string, author string, file string) bool {
 	ret, err := repo.GetFile(name, author, file)
 	if ret != nil && err == nil {
 		return true
-	} 
+	}
 	return false
 }
 
@@ -439,7 +440,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		return c.NoContent(gig.StatusBadRequest,
 				   "Invalid repository")
 	}
-	
+
 	data := struct {
 		Protocol string
 		Domain string
@@ -503,8 +504,7 @@ func PublicAccount(c gig.Context) error {
 func ShowAccess(c gig.Context) error {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	repo, err := user.GetRepo(c.Param("repo"))
 	if err != nil {
@@ -530,4 +530,17 @@ func ShowAccess(c gig.Context) error {
 		Owner: true,
 	}
 	return execT(c, "repo_access.gmi", data)
+}
+
+func ShowOTP(c gig.Context) error {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
+	}
+	data := struct {
+		Secret bool
+	}{
+		Secret: user.Secret != "",
+	}
+	return execT(c, "otp.gmi", data)
 }

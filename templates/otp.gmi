@@ -1,0 +1,7 @@
+# OTP
+{{if .Secret}}
+=>/account/otp/rm Remove 2FA
+{{else}}
+=>/account/otp/qr QR code
+=>/account/otp/confirm Confirm
+{{end}}

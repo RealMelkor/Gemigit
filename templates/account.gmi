@@ -10,6 +10,7 @@
 =>/account/addgroup Create a new user group
 =>/account/chdesc Change your account description
 =>/account/groups View the groups you are in
+=>/account/otp View 2FA settings
 =>/account/disconnect Disconnect
 {{if .Sessions -}}
 =>/account/disconnectall Disconnect other sessions [{{.Sessions}}]

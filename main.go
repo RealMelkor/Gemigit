@@ -212,6 +212,10 @@ func main() {
 	secure.Handle("/chdesc", gmi.ChangeDesc)
 	secure.Handle("/addrepo", gmi.AddRepo)
 	secure.Handle("/addgroup", gmi.AddGroup)
+	secure.Handle("/otp", gmi.ShowOTP)
+	secure.Handle("/otp/qr", gmi.CreateTOTP)
+	secure.Handle("/otp/confirm", gmi.ConfirmTOTP)
+	secure.Handle("/otp/rm", gmi.RemoveTOTP)
 
 	if !config.Cfg.Ldap.Enabled {
 		secure.Handle("/chpasswd", gmi.ChangePassword)
@@ -251,6 +255,7 @@ func main() {
 		g.Handle("/register", gmi.Register)
 		g.Handle("/register/:name", gmi.RegisterConfirm)
 	}
+	g.Handle("/otp", gmi.LoginOTP)
 
 	g.Handle("/", func(c gig.Context) error {
 		return gmi.ShowIndex(c)

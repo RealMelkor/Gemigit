@@ -9,7 +9,7 @@ func isGroupOwner(c gig.Context) (int, error) {
 	user, exist := db.GetUser(c.CertHash())
         if !exist {
                 return -1, c.NoContent(gig.StatusBadRequest,
-                         	       "Invalid username")
+					"Invalid username")
         }
 	groupID, err := db.GetGroupID(c.Param("group"))
 	if err != nil {

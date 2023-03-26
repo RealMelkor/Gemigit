@@ -31,6 +31,7 @@ type User struct {
 	Registration int
 	Connection   time.Time
 	Signature    string
+	Secret       string
 }
 
 type Group struct {
@@ -155,8 +156,9 @@ func createTable(db *sql.DB, isSqlite bool) error {
 	userTable := `CREATE TABLE user (
 		userID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
 		name TEXT UNIQUE NOT NULL,
-		password TEXT,
-		description TEXT DEFAULT "",
+		password TEXT NOT NULL,
+		description TEXT DEFAULT "" NOT NULL,
+		secret TEXT DEFAULT "" NOT NULL,
 		creation INTEGER NOT NULL
 	);`
 
@@ -211,13 +213,13 @@ func createTable(db *sql.DB, isSqlite bool) error {
 	if err != nil {
 		return err
 	}
-	log.Println("Member table created")
+	log.Println("Members table created")
 
 	_, err = db.Exec(certificateTable)
 	if err != nil {
 		return err
 	}
-	log.Println("Certificate table created")
+	log.Println("Certificates table created")
 
 	_, err = db.Exec(accessTable)
 	if err != nil {
@@ -257,7 +259,7 @@ func CheckAuth(username string, password string) (error) {
 }
 
 func FetchUser(username string, signature string) (User, error) {
-	query := "SELECT userID, name, description, creation " +
+	query := "SELECT userID, name, description, creation, secret " +
 		 "FROM user WHERE UPPER(name) LIKE UPPER(?)"
 	rows, err := db.Query(query, username)
 	if err != nil {
@@ -269,17 +271,11 @@ func FetchUser(username string, signature string) (User, error) {
 		return User{}, errors.New("User not found")
 	}
 	var u = User{}
-	if config.Cfg.Ldap.Enabled {
-		err = rows.Scan(&u.ID,
-				&u.Name,
-				&u.Description,
-				&u.Registration)
-	} else {
-		err = rows.Scan(&u.ID,
-				&u.Name,
-				&u.Description,
-				&u.Registration)
-	}
+	err = rows.Scan(&u.ID,
+			&u.Name,
+			&u.Description,
+			&u.Registration,
+			&u.Secret)
 	if err != nil {
 		return User{}, err
 	}
@@ -375,7 +371,7 @@ func (user User) CreateGroup(group string, signature string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	groupID, err := rows.LastInsertId()
 	if err != nil {
 		return err
@@ -516,10 +512,7 @@ func DeleteMember(user int, group int) error {
 func SetGroupDescription(group int, desc string) error {
 	_, err := db.Exec("UPDATE groups SET description = ? " +
 			  "WHERE groupID = ?", desc, group)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func DeleteGroup(group int) error {
@@ -591,8 +584,8 @@ func (user User) DeleteRepo(repo string, signature string) error {
 }
 
 func SetUser(signature string, user User) error {
-	_, err := db.Exec("INSERT INTO certificate (userID, hash) " +
-			  "VALUES (?, ?)", user.ID, signature)
+	_, err := db.Exec("INSERT INTO certificate (userID, hash, creation) " +
+			"VALUES (?, ?, " + unixTime + ")", user.ID, signature)
 	if err != nil {
 		log.Println(err.Error())
 		return err
@@ -608,9 +601,11 @@ func GetUser(signature string) (User, bool) {
 	if b {
 		return user, b
 	}
-	rows, err := db.Query("SELECT a.userID, name, description, creation " +
-			      "FROM user a INNER JOIN certificate b ON " +
-			      "a.userID = b.userID WHERE hash = ?", signature)
+	rows, err := db.Query(`SELECT a.userID, name, description, a.creation,
+				a.secret
+				FROM user a INNER JOIN certificate b ON
+				a.userID = b.userID WHERE b.hash = ?`,
+				signature)
 	if err != nil {
 		return User{}, false
 	}
@@ -619,7 +614,7 @@ func GetUser(signature string) (User, bool) {
 		return User{}, false
 	}
 	err = rows.Scan(&user.ID, &user.Name, &user.Description,
-			&user.Registration)
+			&user.Registration, &user.Secret)
 	if err != nil {
 		return User{}, false
 	}
@@ -863,10 +858,7 @@ func SetUserAccess(repoID int, userID int, privilege int) (error) {
 	_, err := db.Exec("UPDATE access SET privilege = ? " +
 			  "WHERE repoID = ? AND userID = ?",
 			  privilege, repoID, userID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func GetRepoAccess(repoID int) ([]Access, error) {
@@ -1116,10 +1108,7 @@ func (user User) TogglePublic(repo string, signature string) error {
 	_, err = db.Exec("UPDATE repo SET public=? " +
 			 "WHERE UPPER(name) LIKE UPPER(?) " + 
 			 "AND userID=?", i, repo, user.ID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (user *User) VerifySignature(signature string) error {
@@ -1329,4 +1318,12 @@ func (user *User) UpdateDescription() error {
 	}
 	users[user.Signature] = *user
 	return nil
+}
+
+func (user *User) SetUserToken(token string) error {
+	_, err := db.Exec("UPDATE user SET secret = ? " +
+			  "WHERE userID = ?", token, user.ID)
+	user.Secret = token
+	users[user.Signature] = *user
+	return err
 }
