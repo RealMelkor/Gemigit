@@ -11,6 +11,9 @@
 =>/account/chdesc Change your account description
 =>/account/groups View the groups you are in
 =>/account/disconnect Disconnect
+{{if .Sessions -}}
+=>/account/disconnectall Disconnect other sessions [{{.Sessions}}]
+{{- end}}
 
 ## Your repositories
 {{ range .Repositories -}} 

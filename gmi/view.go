@@ -124,8 +124,7 @@ func ShowIndex(c gig.Context) (error) {
 func ShowAccount(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	repoNames := []string{}
 	repos, err := user.GetRepos(false)
@@ -138,16 +137,26 @@ func ShowAccount(c gig.Context) (error) {
 		}
 	}
 	accessRepos, err := db.HasReadAccessTo(user.ID)
+	sessions, err := user.GetSessionsCount()
+	if err != nil {
+		log.Println(err)
+		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
+	}
+	if sessions == 1 {
+		sessions = 0
+	}
 	data := struct {
 		Username string
 		Description string
 		Repositories []string
 		RepositoriesAccess []db.Repo
+		Sessions int
 	}{
 		Username: user.Name,
 		Description: user.Description,
 		Repositories: repoNames,
 		RepositoriesAccess: accessRepos,
+		Sessions: sessions,
 	}
 	return execT(c, "account.gmi", data)
 }
@@ -155,8 +164,7 @@ func ShowAccount(c gig.Context) (error) {
 func ShowGroups(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	groups, err := user.GetGroups()
 	if err != nil {
@@ -175,8 +183,7 @@ func ShowGroups(c gig.Context) (error) {
 func ShowMembers(c gig.Context) (error) {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	group := c.Param("group")
 	isOwner, err := user.IsInGroup(group)

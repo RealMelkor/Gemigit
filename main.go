@@ -218,6 +218,7 @@ func main() {
 	}
 
 	secure.Handle("/disconnect", gmi.Disconnect)
+	secure.Handle("/disconnectall", gmi.DisconnectAll)
 
 	if config.Cfg.Git.Key != "" {
 		api := g.Group("/api")

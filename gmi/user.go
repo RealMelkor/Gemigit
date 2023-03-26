@@ -94,18 +94,27 @@ func ChangePassword(c gig.Context) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account")
+	return c.NoContent(gig.StatusRedirectTemporary, "/account")
 }
 
 func Disconnect(c gig.Context) error {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	if err := user.Disconnect(c.CertHash()); err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	return c.NoContent(gig.StatusRedirectTemporary, "/")
+}
+
+func DisconnectAll(c gig.Context) error {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
+	}
+	if err := user.DisconnectAll(c.CertHash()); err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	return c.NoContent(gig.StatusRedirectTemporary, "/account")
 }
