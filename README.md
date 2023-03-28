@@ -8,6 +8,8 @@ A self-hosted gemini Git service
 * Private and public repositories
 * Serving git repositories on the http protocol
 * LDAP authentication
+* 2FA with time-based one-time passwords
+* Option to use token authentication when doing git operations
 * Basic brute-force protection
 * User groups
 * Privilege system for read/write access
