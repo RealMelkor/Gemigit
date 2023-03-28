@@ -82,6 +82,8 @@ func LoadTemplate(dir string) error {
 		dir + "/public_list.gmi",
 		dir + "/public_user.gmi",
 		dir + "/otp.gmi",
+		dir + "/token.gmi",
+		dir + "/token_new.gmi",
 	))
 	if err != nil {
 		return err
@@ -530,17 +532,4 @@ func ShowAccess(c gig.Context) error {
 		Owner: true,
 	}
 	return execT(c, "repo_access.gmi", data)
-}
-
-func ShowOTP(c gig.Context) error {
-	user, exist := db.GetUser(c.CertHash())
-	if !exist {
-		return c.NoContent(gig.StatusBadRequest, "Invalid username")
-	}
-	data := struct {
-		Secret bool
-	}{
-		Secret: user.Secret != "",
-	}
-	return execT(c, "otp.gmi", data)
 }

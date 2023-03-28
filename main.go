@@ -212,10 +212,17 @@ func main() {
 	secure.Handle("/chdesc", gmi.ChangeDesc)
 	secure.Handle("/addrepo", gmi.AddRepo)
 	secure.Handle("/addgroup", gmi.AddGroup)
+	// otp
 	secure.Handle("/otp", gmi.ShowOTP)
 	secure.Handle("/otp/qr", gmi.CreateTOTP)
 	secure.Handle("/otp/confirm", gmi.ConfirmTOTP)
 	secure.Handle("/otp/rm", gmi.RemoveTOTP)
+	// token
+	secure.Handle("/token", gmi.ListTokens)
+	secure.Handle("/token/new", gmi.CreateToken)
+	secure.Handle("/token/secure", gmi.ToggleTokenAuth)
+	secure.Handle("/token/renew/:token", gmi.RenewToken)
+	secure.Handle("/token/delete/:token", gmi.DeleteToken)
 
 	if !config.Cfg.Ldap.Enabled {
 		secure.Handle("/chpasswd", gmi.ChangePassword)

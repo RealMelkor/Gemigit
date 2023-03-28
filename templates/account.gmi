@@ -10,6 +10,7 @@
 =>/account/addgroup Create a new user group
 =>/account/chdesc Change your account description
 =>/account/groups View the groups you are in
+=>/account/token View authentication tokens settings
 =>/account/otp View 2FA settings
 =>/account/chpasswd Change your password
 =>/account/disconnect Disconnect

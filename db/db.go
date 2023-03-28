@@ -8,6 +8,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"encoding/base64"
+	"crypto/rand"
+	"crypto/sha256"
 
 	_ "github.com/mattn/go-sqlite3"
 	_ "modernc.org/sqlite"
@@ -32,6 +35,7 @@ type User struct {
 	Connection   time.Time
 	Signature    string
 	Secret       string
+	SecureGit    bool
 }
 
 type Group struct {
@@ -51,6 +55,14 @@ type Access struct {
 	UserID	int
 	Name	string
 	Privilege int
+}
+
+type Token struct {
+	Hint string
+	Expiration int64
+	ExpirationFormat string
+	UserID	int
+	ID int
 }
 
 var users = make(map[string]User)
@@ -159,7 +171,8 @@ func createTable(db *sql.DB, isSqlite bool) error {
 		password TEXT NOT NULL,
 		description TEXT DEFAULT "" NOT NULL,
 		secret TEXT DEFAULT "" NOT NULL,
-		creation INTEGER NOT NULL
+		creation INTEGER NOT NULL,
+		securegit INTEGER DEFAULT 0 NOT NULL
 	);`
 
 	groupTable := `CREATE TABLE groups (
@@ -194,7 +207,20 @@ func createTable(db *sql.DB, isSqlite bool) error {
 		name TEXT NOT NULL,
 		description TEXT DEFAULT "",
 		creation INTEGER NOT NULL,
-		public INTEGER DEFAULT 0
+		public INTEGER DEFAULT 0,
+		securegit INTEGER DEFAULT 0 NOT NULL
+	);`
+
+	tokenTable := `CREATE TABLE token (
+		tokenID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
+		userID INTEGER NOT NULL,
+		token TEXT NOT NULL,
+		hint TEXT NOT NULL,
+		expiration INTEGER NOT NULL
+	);`
+
+	userConstraint := `CREATE UNIQUE INDEX username_upper ON user (
+		UPPER(name), UPPER(name)
 	);`
 
 	_, err := db.Exec(userTable)
@@ -233,6 +259,18 @@ func createTable(db *sql.DB, isSqlite bool) error {
 	}
 	log.Println("Repositories table created")
 
+	_, err = db.Exec(tokenTable)
+	if err != nil {
+		return err
+	}
+	log.Println("Tokens table created")
+
+        _, err = db.Exec(userConstraint)
+        if err != nil {
+                return err
+        }
+        log.Println("Users constraint created")
+
 	return nil
 }
 
@@ -259,8 +297,8 @@ func CheckAuth(username string, password string) (error) {
 }
 
 func FetchUser(username string, signature string) (User, error) {
-	query := "SELECT userID, name, description, creation, secret " +
-		 "FROM user WHERE UPPER(name) LIKE UPPER(?)"
+	query := `SELECT userID, name, description, creation, secret, securegit
+			FROM user WHERE UPPER(name) LIKE UPPER(?)`
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return User{}, err
@@ -275,7 +313,8 @@ func FetchUser(username string, signature string) (User, error) {
 			&u.Name,
 			&u.Description,
 			&u.Registration,
-			&u.Secret)
+			&u.Secret,
+			&u.SecureGit)
 	if err != nil {
 		return User{}, err
 	}
@@ -312,17 +351,11 @@ func Register(username string, password string) error {
 		_, err = db.Exec("INSERT INTO user(name,password,creation) " +
 				 "VALUES(?, ?, " + unixTime + ");",
 				 username, hash)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}
 	_, err := db.Exec("INSERT INTO user(name,creation) " +
 			  "VALUES(?, " + unixTime + ")", username)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (user User) CreateRepo(repo string, signature string) error {
@@ -602,7 +635,7 @@ func GetUser(signature string) (User, bool) {
 		return user, b
 	}
 	rows, err := db.Query(`SELECT a.userID, name, description, a.creation,
-				a.secret
+				a.secret, a.securegit
 				FROM user a INNER JOIN certificate b ON
 				a.userID = b.userID WHERE b.hash = ?`,
 				signature)
@@ -614,7 +647,7 @@ func GetUser(signature string) (User, bool) {
 		return User{}, false
 	}
 	err = rows.Scan(&user.ID, &user.Name, &user.Description,
-			&user.Registration, &user.Secret)
+			&user.Registration, &user.Secret, &user.SecureGit)
 	if err != nil {
 		return User{}, false
 	}
@@ -906,7 +939,7 @@ func GetRepoGroupAccess(repoID int) ([]Access, error) {
 }
 
 func (user User) GetRepo(reponame string) (Repo, error) {
-	rows, err := db.Query("SELECT repoID, userID, name, " + 
+	rows, err := db.Query("SELECT repoID, userID, name, " +
 			      "creation, public, description " +
 			      "FROM repo WHERE UPPER(name) LIKE UPPER(?) " +
 			      "AND userID=?", reponame, user.ID)
@@ -923,7 +956,7 @@ func (user User) GetRepo(reponame string) (Repo, error) {
 		}
 		return r, nil
 	}
-	return Repo{}, errors.New("No repository called " + 
+	return Repo{}, errors.New("No repository called " +
 				  reponame + " by user " + user.Name)
 }
 
@@ -931,7 +964,7 @@ func (user User) GetRepos(onlyPublic bool) ([]Repo, error) {
 	var rows *sql.Rows
 	var err error
 	query := "SELECT repoID, userID, name, " +
-		 "creation, public, description " + 
+		 "creation, public, description " +
 		 "FROM repo WHERE userID=?"
 	if onlyPublic {
 		query += " AND public=1"
@@ -1106,7 +1139,7 @@ func (user User) TogglePublic(repo string, signature string) error {
 		i = 0
 	}
 	_, err = db.Exec("UPDATE repo SET public=? " +
-			 "WHERE UPPER(name) LIKE UPPER(?) " + 
+			 "WHERE UPPER(name) LIKE UPPER(?) " +
 			 "AND userID=?", i, repo, user.ID)
 	return err
 }
@@ -1130,7 +1163,7 @@ func ChangePassword(username string, password string) error {
 	if err != nil {
 		return err
 	}
-	statement, err := db.Exec("UPDATE user SET password=? " + 
+	statement, err := db.Exec("UPDATE user SET password=? " +
 				  "WHERE UPPER(name) LIKE UPPER(?)",
 				  hPassword, username)
 	if err != nil {
@@ -1326,4 +1359,137 @@ func (user *User) SetUserToken(token string) error {
 	user.Secret = token
 	users[user.Signature] = *user
 	return err
+}
+
+func CanUsePassword(repo string, owner string, username string) (bool, error) {
+	row, err := db.Query(`SELECT securegit FROM user WHERE
+				UPPER(name) LIKE UPPER(?)`, username)
+	if err != nil {
+		log.Println(err)
+		return false, err
+	}
+	defer row.Close()
+	var secure int
+	if (!row.Next()) {
+		return false, errors.New("not found")
+	}
+	row.Scan(&secure)
+	if secure != 0 {
+		return false, nil
+	}
+	row.Close()
+
+	row, err = db.Query(`SELECT b.securegit FROM user a
+				INNER JOIN repo b ON a.userID = b.UserID WHERE
+				UPPER(a.name) LIKE UPPER(?) AND
+				UPPER(b.name) LIKE UPPER(?)`,
+				owner, repo)
+	if err != nil {
+		log.Println(err)
+		return false, err
+	}
+	if (!row.Next()) {
+		return false, errors.New("not found")
+	}
+	defer row.Close()
+	row.Scan(&secure)
+	return secure == 0, nil
+}
+
+func TokenAuth(username string, token string) error {
+	decoded, err := base64.RawStdEncoding.DecodeString(token)
+	if err != nil {
+		log.Println(err)
+		return errors.New("unexpected error")
+	}
+	sum := sha256.Sum224(decoded)
+	hash := base64.RawStdEncoding.EncodeToString(sum[:])
+	row, err := db.Query(`SELECT b.expiration FROM user a
+				INNER JOIN token b ON a.userID = b.UserID WHERE
+				UPPER(a.name) LIKE UPPER(?) AND
+				UPPER(b.token) LIKE UPPER(?)`,
+				username, hash)
+	if err != nil {
+		log.Println(err)
+		return errors.New("unexpected error")
+	}
+	defer row.Close()
+	if !row.Next() {
+		return errors.New("invalid token")
+	}
+	var expiration int64
+	row.Scan(&expiration)
+	if expiration <= time.Now().Unix() {
+		return errors.New("token expired")
+	}
+	return nil
+}
+
+func (user User) CreateToken() (string, error) {
+	data := make([]byte, 32)
+	if _, err := rand.Read(data); err != nil {
+		return "", err
+	}
+	token := base64.RawStdEncoding.EncodeToString(data)
+	sum := sha256.Sum224(data)
+	hash := base64.RawStdEncoding.EncodeToString(sum[:])
+	_, err := db.Exec(`INSERT INTO token(userID, token, hint, expiration)
+				VALUES(?, ?, ?, ?);`,
+				user.ID, hash, token[0:4],
+				time.Now().Unix() + 3600 * 24 * 30)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (user User) RenewToken(tokenID int) (error) {
+	_, err := db.Exec(`UPDATE token SET expiration = ?
+				WHERE tokenID = ? AND userID = ?`,
+				time.Now().Unix() + 3600 * 24 * 30,
+				tokenID, user.ID)
+	return err
+}
+
+func (user User) DeleteToken(tokenID int) (error) {
+	_, err := db.Exec(`DELETE FROM token WHERE tokenID = ? AND userID = ?`,
+				tokenID, user.ID)
+	return err
+}
+
+func (user User) GetTokens() ([]Token, error) {
+	rows, err := db.Query(`SELECT tokenID, expiration, hint FROM token
+				WHERE userID = ?`, user.ID)
+	if err != nil {
+		log.Println(err)
+		return nil, errors.New("unexpected error")
+	}
+	defer rows.Close()
+
+	tokens := []Token{}
+	for rows.Next() {
+		var r Token
+		err = rows.Scan(&r.ID, &r.Expiration, &r.Hint)
+		if err != nil {
+			return nil, err
+		}
+		r.ExpirationFormat = time.Unix(r.Expiration, 0).UTC().
+							Format(time.RFC1123)
+		tokens = append(tokens, r)
+	}
+	return tokens, nil
+}
+
+func (user *User) ToggleSecure() error {
+	user.SecureGit = !user.SecureGit
+
+	_, err := db.Exec("UPDATE user SET securegit = ? " +
+			  "WHERE userID = ?", user.SecureGit, user.ID)
+	if err != nil {
+		return err
+	}
+
+	users[user.Signature] = *user
+	return nil
 }

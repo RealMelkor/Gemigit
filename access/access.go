@@ -30,23 +30,21 @@ func Init() error {
 }
 
 // return nil if credential are valid, an error if not
-func Login(name string, password string) (error) {
+func Login(name string, password string, useToken bool) (error) {
 	if name == "" || password == "" {
 		return errors.New("empty field")
 	}
+	if useToken {
+		return db.TokenAuth(name, password)
+	}
 	if config.Cfg.Ldap.Enabled {
-		err := conn.Bind(fmt.Sprintf("%s=%s,%s",
+		return conn.Bind(fmt.Sprintf("%s=%s,%s",
 				 config.Cfg.Ldap.Attribute,
 				 ldap.EscapeFilter(name),
 				 config.Cfg.Ldap.Binding),
 				 password)
-		return err
 	}
-	err := db.CheckAuth(name, password)
-	if err != nil {
-		return err
-	}
-	return nil
+	return db.CheckAuth(name, password)
 }
 
 func hasAccess(repo string, author string, user string, access int) error {

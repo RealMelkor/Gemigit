@@ -74,10 +74,12 @@ func basicAuth(next http.Handler) http.Handler {
 			renderNotFound(w)
 			return
 		}
+		owner := params[0]
+		repo := params[1]
 		if strings.Contains(r.URL.Path, "git-upload-pack") ||
 		   strings.Contains(r.URL.RawQuery, "git-upload-pack") {
 			readOnly = true
-			public, err = db.IsRepoPublic(params[1], params[0])
+			public, err = db.IsRepoPublic(repo, owner)
 			if err != nil {
 				renderNotFound(w)
 				return
@@ -102,7 +104,14 @@ func basicAuth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		err = access.Login(username, password)
+		/* check if it is allowed to use password instead of token*/
+		pass, err := db.CanUsePassword(repo, owner, username)
+		if err != nil {
+			log.Println(err.Error())
+			renderUnauthorized(w)
+			return
+		}
+		err = access.Login(username, password, !pass)
 		if err != nil {
 			log.Println(err.Error())
 			renderUnauthorized(w)
@@ -113,11 +122,9 @@ func basicAuth(next http.Handler) http.Handler {
 			return
 		}
 		if readOnly {
-			err = access.HasReadAccess(params[1], params[0],
-						   username)
+			err = access.HasReadAccess(repo, owner, username)
 		} else {
-			err = access.HasWriteAccess(params[1], params[0],
-						    username)
+			err = access.HasWriteAccess(repo, owner, username)
 		}
 		if err != nil {
 			log.Println(err.Error())

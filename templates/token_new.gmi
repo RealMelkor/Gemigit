@@ -1,0 +1,5 @@
+=>/account/token Go back
+
+# New token created
+
+Copy this token : {{.Token}}
