@@ -54,7 +54,7 @@ func Connect(username string, password string,
 		return errors.New("too many connections attempts")
 	}
 
-	err := access.Login(username, password, false)
+	err := access.Login(username, password, false, true)
 	if err != nil {
 		return err
 	}

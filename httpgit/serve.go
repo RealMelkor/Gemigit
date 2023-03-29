@@ -111,10 +111,7 @@ func basicAuth(next http.Handler) http.Handler {
 			renderUnauthorized(w)
 			return
 		}
-		if !pass {
-			password = ""
-		}
-		err = access.Login(username, password, true)
+		err = access.Login(username, password, true, pass)
 		if err != nil {
 			log.Println(err.Error())
 			renderUnauthorized(w)

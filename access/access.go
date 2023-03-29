@@ -30,12 +30,19 @@ func Init() error {
 }
 
 // return nil if credential are valid, an error if not
-func Login(name string, password string, useToken bool) (error) {
+func Login(name string, password string,
+		allowToken bool, allowPassword bool) (error) {
+	if !allowToken && !allowPassword {
+		return errors.New("no authentication")
+	}
 	if name == "" || password == "" {
 		return errors.New("empty field")
 	}
-	if useToken && db.TokenAuth(name, password) != nil{
-		return nil
+	if allowToken {
+		err := db.TokenAuth(name, password)
+		if err == nil || !allowPassword {
+			return err
+		}
 	}
 	if config.Cfg.Ldap.Enabled {
 		return conn.Bind(fmt.Sprintf("%s=%s,%s",
