@@ -34,8 +34,8 @@ func Login(name string, password string, useToken bool) (error) {
 	if name == "" || password == "" {
 		return errors.New("empty field")
 	}
-	if useToken {
-		return db.TokenAuth(name, password)
+	if useToken && db.TokenAuth(name, password) != nil{
+		return nil
 	}
 	if config.Cfg.Ldap.Enabled {
 		return conn.Bind(fmt.Sprintf("%s=%s,%s",
