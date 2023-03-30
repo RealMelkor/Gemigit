@@ -9,7 +9,8 @@ import (
 )
 
 func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password),
+						bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
@@ -21,6 +22,7 @@ func checkPassword(password, hash string) bool {
 const (
 	passwordMinLen = 6
 	passwordMaxLen = 32
+	maxNameLen = 24
 )
 
 func isPasswordValid(password string) (error) {
@@ -28,24 +30,34 @@ func isPasswordValid(password string) (error) {
 		return errors.New("empty password")
 	}
 	if len(password) < passwordMinLen {
-		return errors.New("password too short(minimum " + 
-				  strconv.Itoa(passwordMinLen) + 
+		return errors.New("password too short(minimum " +
+				  strconv.Itoa(passwordMinLen) +
 				  " characters)")
 	}
 	if len(password) > passwordMaxLen {
-		return errors.New("password too long(maximum " + 
-				  strconv.Itoa(passwordMaxLen) + 
+		return errors.New("password too long(maximum " +
+				  strconv.Itoa(passwordMaxLen) +
 				  " characters)")
 	}
 	return nil
 }
 
-func isNameValid(name string) (error) {
+func isNameValid(name string) error {
 	if len(name) == 0 {
 		return errors.New("empty name")
 	}
+	if len(name) > maxNameLen {
+		return errors.New("name too long")
+	}
 	if !unicode.IsLetter([]rune(name)[0]) {
 		return errors.New("your name must start with a letter")
+	}
+	return nil
+}
+
+func isUsernameValid(name string) error {
+	if err := isNameValid(name); err != nil {
+		return err
 	}
 	for _, c := range name {
 		if c > unicode.MaxASCII ||
@@ -58,14 +70,11 @@ func isNameValid(name string) (error) {
 }
 
 func isGroupNameValid(name string) (error) {
-	if len(name) == 0 {
-		return errors.New("empty name")
-	}
-	if !unicode.IsLetter([]rune(name)[0]) {
-		return errors.New("the group name must start with a letter")
+	if err := isNameValid(name); err != nil {
+		return err
 	}
 	for _, c := range name {
-		if c > unicode.MaxASCII || 
+		if c > unicode.MaxASCII ||
 		   (!unicode.IsLetter(c) && !unicode.IsNumber(c) &&
 		   c != '-' && c != '_') {
 			return errors.New("the group name " +
@@ -76,15 +85,11 @@ func isGroupNameValid(name string) (error) {
 }
 
 func isRepoNameValid(name string) (error) {
-	if len(name) == 0 {
-		return errors.New("empty name")
-	}
-	if !unicode.IsLetter([]rune(name)[0]) {
-		return errors.New("the repository name " + 
-				  "must start with a letter")
+	if err := isNameValid(name); err != nil {
+		return err
 	}
 	for _, c := range name {
-		if c > unicode.MaxASCII || 
+		if c > unicode.MaxASCII ||
 		   (!unicode.IsLetter(c) && !unicode.IsNumber(c) &&
 		   c != '-' && c != '_') {
 			return errors.New("the repository name " +
