@@ -130,10 +130,10 @@ func (user *User) UpdateDescription() error {
 	return nil
 }
 
-func (user *User) SetUserOTP(token string) error {
+func (user *User) SetUserSecret(secret string) error {
 	_, err := db.Exec("UPDATE user SET secret = ? " +
-			  "WHERE userID = ?", token, user.ID)
-	user.Secret = token
+			  "WHERE userID = ?", secret, user.ID)
+	user.Secret = secret
 	users[user.Signature] = *user
 	return err
 }

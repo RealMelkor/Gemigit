@@ -71,7 +71,7 @@ func ConfirmTOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid code")
 	}
 
-	err = user.SetUserToken(key)
+	err = user.SetUserSecret(key)
 	if err != nil {
 		log.Println(err)
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
@@ -122,7 +122,11 @@ func RemoveTOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusInput, "Code")
 	}
 
-	user.SetUserToken("")
+	err = user.SetUserSecret("")
+	if err != nil {
+		log.Println(err)
+		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
+	}
 
 	return c.NoContent(gig.StatusRedirectTemporary, "/account/otp")
 }

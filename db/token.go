@@ -151,11 +151,3 @@ func TokenAuth(username string, token string) error {
 	}
 	return nil
 }
-
-func (user *User) SetUserToken(token string) error {
-       _, err := db.Exec("UPDATE user SET secret = ? " +
-                         "WHERE userID = ?", token, user.ID)
-       user.Secret = token
-       users[user.Signature] = *user
-       return err
-}
