@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"time"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	_ "modernc.org/sqlite"
@@ -224,9 +225,16 @@ func createTable(db *sql.DB) error {
 }
 
 func printOnSuccess(query string) {
-	_, err := db.Exec(query)
+	res, err := db.Exec(query)
 	if err == nil {
-		log.Println(query)
+		if strings.Contains(query, "UPDATE") {
+			rows, err := res.RowsAffected()
+			if err == nil && rows > 0 {
+				log.Println(query)
+			}
+		} else {
+			log.Println(query)
+		}
 	}
 }
 

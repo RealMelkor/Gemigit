@@ -126,7 +126,9 @@ func main() {
 		fmt.Println("\tchpasswd <username> - Change user password")
 		fmt.Println("\tregister <username> - Create user")
 		fmt.Println("\trmuser <username> - Remove user")
-		fmt.Println("\tupdate - Update database")
+		fmt.Println("\tupdate - Update database " +
+			"(Warning, it is recommended to do a backup of " +
+			"the database before using this command)")
 		fmt.Println("\tinit - Initialize database")
 		return
 	}
