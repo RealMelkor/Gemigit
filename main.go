@@ -109,7 +109,16 @@ func main() {
 			if err != nil {
 				log.Fatalln(err.Error())
 			}
-			defer db.Close()
+			db.Close()
+			return
+		case "update":
+			err := db.Init(config.Cfg.Database.Type,
+				       config.Cfg.Database.Url, false)
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			db.UpdateTable()
+			db.Close()
 			return
 		}
 		fmt.Println("usage: " + os.Args[0] + " [command]")
@@ -117,6 +126,7 @@ func main() {
 		fmt.Println("\tchpasswd <username> - Change user password")
 		fmt.Println("\tregister <username> - Create user")
 		fmt.Println("\trmuser <username> - Remove user")
+		fmt.Println("\tupdate - Update database")
 		fmt.Println("\tinit - Initialize database")
 		return
 	}

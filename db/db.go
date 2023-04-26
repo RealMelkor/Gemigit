@@ -60,12 +60,18 @@ type Token struct {
 }
 
 var unixTime string
+var autoincrement string
 
 var db *sql.DB
 
 func Init(dbType string, path string, create bool) error {
 
 	isSqlite := dbType == "sqlite3" || dbType == "sqlite"
+	if isSqlite {
+		autoincrement = "AUTOINCREMENT"
+	} else {
+		autoincrement = "AUTO_INCREMENT"
+	}
 
 	if !create && isSqlite {
 		file, err := os.Open(path)
@@ -97,7 +103,7 @@ func Init(dbType string, path string, create bool) error {
 		unixTime = "strftime('%s', 'now')"
 	}
 	if create {
-		return createTable(db, isSqlite)
+		return createTable(db)
 	}
 	return nil
 }
@@ -106,12 +112,7 @@ func Close() error {
 	return db.Close()
 }
 
-func createTable(db *sql.DB, isSqlite bool) error {
-	autoincrement := "AUTO_INCREMENT"
-
-	if isSqlite {
-		autoincrement = "AUTOINCREMENT"
-	}
+func createTable(db *sql.DB) error {
 
 	userTable := `CREATE TABLE user (
 		userID INTEGER NOT NULL PRIMARY KEY ` + autoincrement + `,
@@ -220,4 +221,117 @@ func createTable(db *sql.DB, isSqlite bool) error {
         log.Println("Users constraint created")
 
 	return nil
+}
+
+func printOnSuccess(query string) {
+	_, err := db.Exec(query)
+	if err == nil {
+		log.Println(query)
+	}
+}
+
+/* add missing field to database */
+func UpdateTable() {
+
+	/* user table */
+	printOnSuccess("CREATE TABLE user;")
+
+	printOnSuccess("ALTER TABLE user ADD " +
+		"userID INTEGER NOT NULL PRIMARY KEY " + autoincrement)
+	printOnSuccess("ALTER TABLE user ADD name TEXT UNIQUE NOT NULL;")
+	printOnSuccess("ALTER TABLE user ADD password TEXT UNIQUE NOT NULL;")
+
+	printOnSuccess(`ALTER TABLE user ADD
+			description TEXT DEFAULT "";`)
+	printOnSuccess(`UPDATE user SET description=""
+			WHERE description IS NULL;`)
+
+	printOnSuccess(`ALTER TABLE user ADD
+			secret TEXT DEFAULT "";`)
+	printOnSuccess(`UPDATE user SET secret=""
+			WHERE secret IS NULL;`)
+
+	printOnSuccess(`ALTER TABLE user ADD
+			creation INTEGER NOT NULL;`)
+	printOnSuccess(`UPDATE user SET creation=` + unixTime +
+			` WHERE creation IS NULL;`)
+
+	printOnSuccess("ALTER TABLE user ADD securegit INTEGER")
+	printOnSuccess("UPDATE user SET securegit=0 WHERE securegit IS NULL;")
+
+	printOnSuccess(`CREATE UNIQUE INDEX username_upper ON user (
+		UPPER(name), UPPER(name));`)
+
+	/* groups table */
+	printOnSuccess("CREATE TABLE groups;")
+
+	printOnSuccess("ALTER TABLE groups ADD " +
+		"groupID INTEGER NOT NULL PRIMARY KEY " + autoincrement)
+	printOnSuccess("ALTER TABLE groups ADD owner INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE groups ADD name TEXT UNIQUE NOT NULL;")
+
+	printOnSuccess(`ALTER TABLE groups ADD
+			description TEXT DEFAULT "";`)
+	printOnSuccess(`UPDATE groups SET description=""
+			WHERE description IS NULL;`)
+
+	printOnSuccess(`ALTER TABLE groups ADD
+			creation INTEGER NOT NULL;`)
+	printOnSuccess(`UPDATE groups SET creation=` + unixTime +
+			` WHERE creation IS NULL;`)
+
+	/* member table */
+	printOnSuccess("CREATE TABLE member;")
+	printOnSuccess("ALTER TABLE member ADD groupID INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE member ADD userID INTEGER NOT NULL;")
+
+	/* certificate table */
+	printOnSuccess("CREATE TABLE certificate;")
+	printOnSuccess("ALTER TABLE certificate ADD userID INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE certificate ADD " +
+			"hash TEXT UNIQUE NOT NULL;")
+
+	printOnSuccess(`ALTER TABLE certificate ADD
+			creation INTEGER;`)
+	printOnSuccess(`UPDATE certificate SET creation=` + unixTime +
+			` WHERE creation IS NULL;`)
+
+	/* access table */
+	printOnSuccess("CREATE TABLE access;")
+	printOnSuccess("ALTER TABLE access ADD repoID INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE access ADD groupID INTEGER;")
+	printOnSuccess("ALTER TABLE access ADD userID INTEGER;")
+	printOnSuccess("ALTER TABLE access ADD privilege INTEGER NOT NULL;")
+
+	/* repo table */
+	printOnSuccess("CREATE TABLE repo;")
+	printOnSuccess("ALTER TABLE repo ADD " +
+		"repoID INTEGER NOT NULL PRIMARY KEY " + autoincrement)
+	printOnSuccess("ALTER TABLE repo ADD userID INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE repo ADD name TEXT NOT NULL;")
+
+	printOnSuccess(`ALTER TABLE repo ADD
+			description TEXT DEFAULT "";`)
+	printOnSuccess(`UPDATE repo SET description=""
+			WHERE description IS NULL;`)
+
+	printOnSuccess("ALTER TABLE repo ADD creation INTEGER;")
+	printOnSuccess(`UPDATE repo SET creation=` + unixTime +
+			` WHERE creation IS NULL;`)
+
+	printOnSuccess("ALTER TABLE repo ADD public INTEGER NOT NULL")
+	printOnSuccess("UPDATE repo SET public=0 WHERE public IS NULL;")
+
+	printOnSuccess(`ALTER TABLE repo ADD securegit INTEGER NOT NULL`)
+	printOnSuccess(`UPDATE repo SET securegit=0 WHERE securegit IS NULL;`)
+
+	/* token table */
+	printOnSuccess("CREATE TABLE token;")
+	printOnSuccess("ALTER TABLE token ADD " +
+		"tokenID INTEGER NOT NULL PRIMARY KEY " + autoincrement)
+	printOnSuccess("ALTER TABLE token ADD userID INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE token ADD token TEXT NOT NULL;")
+	printOnSuccess("ALTER TABLE token ADD hint TEXT NOT NULL;")
+	printOnSuccess("ALTER TABLE token ADD expiration INTEGER NOT NULL;")
+
 }
