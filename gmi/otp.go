@@ -71,7 +71,7 @@ func ConfirmTOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid code")
 	}
 
-	err = user.SetUserSecret(key)
+	err = user.SetSecret(key)
 	if err != nil {
 		log.Println(err)
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
@@ -122,7 +122,7 @@ func RemoveTOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusInput, "Code")
 	}
 
-	err = user.SetUserSecret("")
+	err = user.SetSecret("")
 	if err != nil {
 		log.Println(err)
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")

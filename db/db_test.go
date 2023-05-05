@@ -46,9 +46,37 @@ func TestDB(t *testing.T) {
 	if err := Close(); err != nil {
 		t.Fatal(err)
 	}
+
+	if err := Init("sqlite3", "/invalid/test.db", false); err == nil {
+		t.Fatal("should be unable to create database")
+	}
+
+	if err := Init("invalid", "test.db", false); err == nil {
+		t.Fatal("should be unable to open database")
+	}
+
 	if err := Init("sqlite3", "test.db", false); err != nil {
 		t.Fatal(err)
 	}
+
+}
+
+func TestUpdateTable(t *testing.T) {
+
+	initDB(t)
+
+	_, err := db.Exec("ALTER TABLE user DROP COLUMN description;")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+
+	username := funcName(t)
+	if err := Register(username, validPassword); err != nil {
+		t.Fatal(err)
+	}
+
+	UpdateTable()
 }
 
 /*

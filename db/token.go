@@ -64,10 +64,17 @@ func (user User) CreateToken() (string, error) {
 }
 
 func (user User) RenewToken(tokenID int) (error) {
-	_, err := db.Exec(`UPDATE token SET expiration = ?
+	res, err := db.Exec(`UPDATE token SET expiration = ?
 				WHERE tokenID = ? AND userID = ?`,
 				time.Now().Unix() + 3600 * 24 * 30,
 				tokenID, user.ID)
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows < 1 {
+		return errors.New("invalid token id")
+	}
 	return err
 }
 

@@ -6,6 +6,8 @@ import (
 	"gemigit/config"
 )
 
+const descriptionMaxLength = 256
+
 var users = make(map[string]User)
 
 func (user *User) VerifySignature(signature string) error {
@@ -89,6 +91,9 @@ func (user User) ChangeDescription(desc string, signature string) error {
 	if err := user.VerifySignature(signature); err != nil {
 		return err
 	}
+	if len(desc) >= descriptionMaxLength {
+		return errors.New("description too long")
+	}
 	statement, err := db.Exec("UPDATE user SET description=? " +
 				  "WHERE UPPER(name) LIKE UPPER(?)",
 				  desc, user.Name)
@@ -130,12 +135,22 @@ func (user *User) UpdateDescription() error {
 	return nil
 }
 
-func (user *User) SetUserSecret(secret string) error {
-	_, err := db.Exec("UPDATE user SET secret = ? " +
+func (user *User) SetSecret(secret string) error {
+	res, err := db.Exec("UPDATE user SET secret = ? " +
 			  "WHERE userID = ?", secret, user.ID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return errors.New("user not found")
+	}
 	user.Secret = secret
 	users[user.Signature] = *user
-	return err
+	return nil
 }
 
 func DeleteUser(username string) error {
