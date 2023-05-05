@@ -238,7 +238,7 @@ func FetchUser(username string, signature string) (User, error) {
 	return u, nil
 }
 
-func CheckAuth(username string, password string) (error) {
+func CheckAuth(username string, password string) error {
 	rows, err := db.Query("SELECT name, password FROM user " +
 			      "WHERE UPPER(name) LIKE UPPER(?)",
 			      username)

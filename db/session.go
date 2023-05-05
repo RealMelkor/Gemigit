@@ -61,7 +61,7 @@ func (user User) DisconnectAll(signature string) error {
 	return nil
 }
 
-func AddUserSession(signature string, user User) error {
+func (user User) CreateSession(signature string) error {
 	_, err := db.Exec("INSERT INTO certificate (userID, hash, creation) " +
 			"VALUES (?, ?, " + unixTime + ")", user.ID, signature)
 	if err != nil {

@@ -65,7 +65,7 @@ func Connect(username string, password string,
 			loginToken[signature] = user
 			return errors.New("token required")
 		}
-		db.AddUserSession(signature, user)
+		user.CreateSession(signature)
 		return nil
 	}
 	if !config.Cfg.Ldap.Enabled {
@@ -79,7 +79,7 @@ func Connect(username string, password string,
 	if err != nil {
 		return err
 	}
-	db.AddUserSession(signature, user)
+	user.CreateSession(signature)
 	return nil
 }
 
@@ -98,7 +98,7 @@ func LoginOTP(signature string, code string) error {
 	if !totp.Validate(code, user.Secret) {
 		return errors.New("wrong code")
 	}
-	db.AddUserSession(signature, user)
+	user.CreateSession(signature)
 	delete(loginToken, signature)
 	return nil
 }
