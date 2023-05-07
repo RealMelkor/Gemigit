@@ -6,7 +6,7 @@ import (
 	"gemigit/config"
 )
 
-const descriptionMaxLength = 256
+const descriptionMaxLength = 128
 
 var users = make(map[string]User)
 
@@ -130,6 +130,8 @@ func (user *User) UpdateDescription() error {
 			return err
 		}
 		user.Description = dDescription
+	} else {
+		return errors.New("invalid user")
 	}
 	users[user.Signature] = *user
 	return nil

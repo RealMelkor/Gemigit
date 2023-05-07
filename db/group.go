@@ -1,7 +1,6 @@
 package db
 
 import (
-
 	"errors"
 )
 
@@ -143,8 +142,18 @@ func DeleteMember(user int, group int) error {
 }
 
 func SetGroupDescription(group int, desc string) error {
-	_, err := db.Exec("UPDATE groups SET description = ? " +
+	if len(desc) >= descriptionMaxLength {
+		return errors.New("description too long")
+	}
+	res, err := db.Exec("UPDATE groups SET description = ? " +
 			  "WHERE groupID = ?", desc, group)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if rows < 1 {
+		return errors.New("group not found")
+	}
 	return err
 }
 
@@ -205,6 +214,8 @@ func GetGroupOwner(group string) (Member, error) {
 		if err != nil {
 			return Member{}, err
 		}
+	} else {
+		return Member{}, errors.New("invalid group")
 	}
 	return m, nil
 }
@@ -227,6 +238,9 @@ func (user User) GetMembers(group string) ([]Member, error) {
 			return nil, err
 		}
 		members = append(members, m)
+	}
+	if len(members) == 0 {
+		return nil, errors.New("invalid group")
 	}
 	return members, nil
 }

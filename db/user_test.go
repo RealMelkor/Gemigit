@@ -6,25 +6,23 @@ import (
 	"strconv"
 )
 
+const tooLongDescription =
+	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 var usersCount = 0
 func createUserAndSession(t *testing.T) (User, string, string) {
 
 	usersCount += 1
 
 	username := funcName(t) + strconv.Itoa(usersCount)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
 
 	signature := username + "_signature"
 	user, err := FetchUser(username, signature)
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
-	if err := user.CreateSession(signature); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.CreateSession(signature))
 
 	return user, username, signature
 }
@@ -34,18 +32,12 @@ func TestGetUserID(t *testing.T) {
 	user, username, _ := createUserAndSession(t)
 	
 	id, err := GetUserID(username)
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
-	if id != user.ID {
-		t.Fatal("GetUserID should return the same id as FetchUser")
-	}
+	isEqual(t, id, user.ID)
 
 	_, err = GetUserID(username + "a")
-	if err == nil {
-		t.Fatal("GetUserID should return user not found")
-	}
+	isNotNil(t, err, "GetUserID should return user not found")
 }
 
 func TestGetUser(t *testing.T) {
@@ -53,21 +45,17 @@ func TestGetUser(t *testing.T) {
 	_, username, signature := createUserAndSession(t)
 
 	user, b := GetUser(signature)
-	if !b || user.Name != username {
-		t.Fatal("GetUser should return the same user")
-	}
+	isEqual(t, b, true)
+	isEqual(t, user.Name, username)
 
 	user, b = GetUser(signature + "a")
-	if b {
-		t.Fatal("GetUser should return false")
-	}
+	isEqual(t, b, false)
 
 	delete(users, signature)
 
 	user, b = GetUser(signature)
-	if !b || user.Name != username {
-		t.Fatal("GetUser should return the same user")
-	}
+	isEqual(t, b, true)
+	isEqual(t, user.Name, username)
 }
 
 func TestGetPublicUser(t *testing.T) {
@@ -75,22 +63,14 @@ func TestGetPublicUser(t *testing.T) {
 	initDB(t)
 
 	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
 
-	if _, err := GetPublicUser(username + "a"); err == nil {
-		t.Fatal("should return user not found")
-	}
+	_, err := GetPublicUser(username + "a")
+	isNotNil(t, err, "should return user not found")
 
 	user, err := GetPublicUser(username)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if user.Name != username {
-		t.Fatal("different username")
-	}
+	isNil(t, err)
+	isEqual(t, user.Name, username)
 }
 
 func TestCheckAuth(t *testing.T) {
@@ -98,22 +78,16 @@ func TestCheckAuth(t *testing.T) {
 	initDB(t)
 
 	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
 
 	/* Test credential */
-	if err := CheckAuth(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, CheckAuth(username, validPassword))
 
-	if err := CheckAuth(username, validPassword + "a"); err == nil {
-		t.Fatal("should return invalid credential")
-	}
+	isNotNil(t, CheckAuth(username, validPassword + "a"),
+			"should return invalid credential")
 
-	if err := CheckAuth(username + "a", validPassword); err == nil {
-		t.Fatal("should return invalid credential")
-	}
+	isNotNil(t, CheckAuth(username + "a", validPassword),
+			"should return invalid credential")
 }
 
 func TestChangePassword(t *testing.T) {
@@ -122,36 +96,17 @@ func TestChangePassword(t *testing.T) {
 
 	user, username, signature := createUserAndSession(t)
 
-	if err := CheckAuth(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.ChangePassword(invalidPassword, signature); err == nil {
-		t.Fatal("password should be invalid")
-	}
-
-	err := user.ChangePassword(validPassword + "a", signature + "a")
-	if err == nil {
-		t.Fatal("signature should be invalid")
-	}
-
-	err = user.ChangePassword(validPassword + "a", signature)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := ChangePassword(username + "a", validPassword); err == nil {
-		t.Fatal("username shoudl be invalid")
-	}
-
-	if err := CheckAuth(username, validPassword); err == nil {
-		t.Fatal("credential should be invalid")
-	}
-
-	if err := CheckAuth(username, validPassword + "a"); err != nil {
-		t.Fatal(err)
-	}
-
+	isNil(t, CheckAuth(username, validPassword))
+	isNotNil(t, user.ChangePassword(invalidPassword, signature), 
+			"password should be invalid")
+	isNotNil(t, user.ChangePassword(validPassword + "a", signature + "a"),
+			"signature should be invalid")
+	isNil(t, user.ChangePassword(validPassword + "a", signature))
+	isNotNil(t, ChangePassword(username + "a", validPassword),
+			"username shoudl be invalid")
+	isNotNil(t, CheckAuth(username, validPassword),
+			"credential should be invalid")
+	isNil(t, CheckAuth(username, validPassword + "a"))
 }
 
 func TestRegistration(t *testing.T) {
@@ -159,22 +114,17 @@ func TestRegistration(t *testing.T) {
 	initDB(t)
 
 	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
 
-	if err := Register(username, validPassword); err == nil {
-		t.Fatal("should not be able to register the same username")
-	}
+	isNotNil(t, Register(username, validPassword),
+			"should not be able to register the same username")
 
 	username = strings.ToLower(username)
-	if err := Register(username, validPassword); err == nil {
-		t.Fatal("should detect case-insentive duplicates")
-	}
+	isNotNil(t, Register(username, validPassword),
+			"should detect case-insentive duplicates")
 
-	if err := Register(invalidUsername, validPassword); err == nil {
-		t.Fatal("should not allow invalid username")
-	}
+	isNotNil(t, Register(invalidUsername, validPassword),
+			"should not allow invalid username")
 }
 
 func TestDeleteUser(t *testing.T) {
@@ -182,22 +132,14 @@ func TestDeleteUser(t *testing.T) {
 	initDB(t)
 
 	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := CheckAuth(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
+	isNil(t, CheckAuth(username, validPassword))
 
 	// Delete user
-	if err := DeleteUser(username + "a"); err == nil {
-		t.Fatal("should return user not found")
-	}
-
-	if err := DeleteUser(username); err != nil {
-		t.Fatal(err)
-	}
+	isNotNil(t, DeleteUser(username + "a"), "should return user not found")
+	isNil(t, DeleteUser(username))
+	isNotNil(t, CheckAuth(username, validPassword),
+			"should return invalid credential")
 
 	if err := CheckAuth(username, validPassword); err == nil {
 		t.Fatal("should return invalid credential")
@@ -209,32 +151,18 @@ func TestFetchUser(t *testing.T) {
 	initDB(t)
 
 	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
 
 	signature := username + "_signature"
 	user, err := FetchUser(username, signature)
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
-	if user.Signature != signature {
-		t.Fatal("signature mismatch")
-	}
+	isEqual(t, user.Signature, signature)
 
 	_, err = FetchUser(username + "a", signature)
-	if err == nil {
-		t.Fatal("should return user not found")
-	}
+	isNotNil(t, err, "should return user not found")
 
 }
-
-const longString =
-	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
-	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
-	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
-	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 func TestChangeDescription(t *testing.T) {
 
@@ -242,21 +170,13 @@ func TestChangeDescription(t *testing.T) {
 
 	user, username, signature := createUserAndSession(t)
 
-	err := user.ChangeDescription(username, "bad_signature")
-	if err == nil {
-		t.Fatal("should return invalid signature")
-	}
+	isNotNil(t, user.ChangeDescription(username, "bad_signature"),
+			"should return invalid signature")
 
-	err = user.ChangeDescription("my description", signature)
-	if  err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.ChangeDescription("my description", signature))
 
-	err = user.ChangeDescription(longString, signature)
-	if  err == nil {
-		t.Fatal("should return too long description")
-	}
-
+	isNotNil(t, user.ChangeDescription(tooLongDescription, signature),
+			"should return too long description")
 }
 
 func TestUpdateDescription(t *testing.T) {
@@ -264,22 +184,18 @@ func TestUpdateDescription(t *testing.T) {
 	initDB(t)
 
 	var u User
-	if u.UpdateDescription() != nil {
-		t.Fatal("should return sql error")
-	}
+	isNotNil(t, u.UpdateDescription(), "should return sql error")
 
 	user, _, _ := createUserAndSession(t)
 
 	description := "testing"
 
-	db.Exec("UPDATE user SET description=? WHERE userID=?",
+	_, err := db.Exec("UPDATE user SET description=? WHERE userID=?",
 				description, user.ID)
+	isNil(t, err)
 
-	user.UpdateDescription()
-
-	if user.Description != description {
-		t.Fatal("description value mismatch")
-	}
+	isNil(t, user.UpdateDescription())
+	isEqual(t, user.Description, description)
 }
 
 func TestSetSecret(t *testing.T) {
@@ -287,12 +203,8 @@ func TestSetSecret(t *testing.T) {
 	initDB(t)
 
 	user, _, _ := createUserAndSession(t)
-	if err := user.SetSecret("secret"); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.SetSecret("secret"))
 
 	user.ID = -1
-	if err := user.SetSecret("secret"); err == nil {
-		t.Fatal("should return user not found")
-	}
+	isNotNil(t, user.SetSecret("secret"), "should return user not found")
 }

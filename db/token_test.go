@@ -12,9 +12,7 @@ func TestCreateToken(t *testing.T) {
 	user, _, _ := createUserAndSession(t)
 
 	_, err := user.CreateToken()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 }
 
 func TestRenewToken(t *testing.T) {
@@ -23,27 +21,17 @@ func TestRenewToken(t *testing.T) {
 
 	user, _, _ := createUserAndSession(t)
 
-	if err := user.RenewToken(-1); err == nil {
-		t.Fatal("token id should be invalid")
-	}
+	isNotNil(t, user.RenewToken(-1), "token id should be invalid")
 
 	_, err := user.CreateToken()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
 	tokens, err := user.GetTokens()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
-	if len(tokens) != 1 {
-		t.Fatal("the user should only have one token")
-	}
+	isEqual(t, len(tokens), 1)
 
-	if err := user.RenewToken(tokens[0].ID); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.RenewToken(tokens[0].ID))
 }
 
 func TestDeleteToken(t *testing.T) {
@@ -52,27 +40,16 @@ func TestDeleteToken(t *testing.T) {
 
 	user, _, _ := createUserAndSession(t)
 
-	if err := user.DeleteToken(-1); err == nil {
-		t.Fatal("token id should be invalid")
-	}
+	isNotNil(t, user.DeleteToken(-1), "token id should be invalid")
 
 	_, err := user.CreateToken()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
 	tokens, err := user.GetTokens()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
+	isEqual(t, len(tokens), 1)
 
-	if len(tokens) != 1 {
-		t.Fatal("the user should only have one token")
-	}
-
-	if err := user.DeleteToken(tokens[0].ID); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.DeleteToken(tokens[0].ID))
 }
 
 func TestGetTokens(t *testing.T) {
@@ -84,53 +61,28 @@ func TestGetTokens(t *testing.T) {
 	user.GetTokens()
 
 	tokens, err := user.GetTokens()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(tokens) != 0 {
-		t.Fatal("the user should not have any token")
-	}
+	isNil(t, err)
+	isEqual(t, len(tokens), 0)
 
 	first, err := user.CreateToken()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
 	second, err := user.CreateToken()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
 
 	tokens, err = user.GetTokens()
-	if err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
+	isEqual(t, len(tokens), 2)
 
-	if len(tokens) != 2 {
-		t.Fatal("the user should have 2 tokens")
-	}
+	isEqual(t, tokens[0].Hint, first[0:4])
+	isEqual(t, tokens[1].Hint, second[0:4])
 
-	if tokens[0].Hint != first[0:4] || tokens[1].Hint != second[0:4] {
-		t.Fatal("invalid hint value")
-	}
-
-	if err = user.DeleteToken(tokens[0].ID); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.DeleteToken(tokens[0].ID))
 
 	tokens, err = user.GetTokens()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(tokens) != 1 {
-		t.Fatal("the user should have 2 tokens")
-	}
-
-	if tokens[0].Hint != second[0:4] {
-		t.Fatal("invalid hint value")
-	}
+	isNil(t, err)
+	isEqual(t, len(tokens), 1)
+	isEqual(t, tokens[0].Hint, second[0:4])
 }
 
 func TestCanUsePassword(t *testing.T) {
@@ -138,53 +90,31 @@ func TestCanUsePassword(t *testing.T) {
 	initDB(t)
 
 	_, err := CanUsePassword("invalid", "invalid", "invalid")
-	if err == nil {
-		t.Fatal("should return user not found")
-	}
+	isNotNil(t, err, "should return user not found")
 
 	user, _, signature := createUserAndSession(t)
 	repo := funcName(t)
 
 	_, err = CanUsePassword("invalid", user.Name, user.Name)
-	if err == nil {
-		t.Fatal("should return repository not found")
-	}
+	isNotNil(t, err, "should return repository not found")
 
-	if err := user.CreateRepo(repo, signature); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.CreateRepo(repo, signature))
 
 	b, err := CanUsePassword(repo, user.Name, user.Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !b {
-		t.Fatal("should be true by default")
-	}
+	isNil(t, err)
+	isEqual(t, b, true)
 
-	if err := user.ToggleSecure(); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.ToggleSecure())
 
 	b, err = CanUsePassword(repo, user.Name, user.Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b {
-		t.Fatal("should be false when secure mode is enabled")
-	}
+	isNil(t, err)
+	isEqual(t, b, false)
 
-	if err := user.ToggleSecure(); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.ToggleSecure())
 
 	b, err = CanUsePassword(repo, user.Name, user.Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !b {
-		t.Fatal("should be true when secure mode is disabled")
-	}
+	isNil(t, err)
+	isEqual(t, b, true)
 }
 
 func TestTokenAuth(t *testing.T) {
@@ -193,34 +123,18 @@ func TestTokenAuth(t *testing.T) {
 
 	user, _, _ := createUserAndSession(t)
 
-	if err := TokenAuth(user.Name, "invalid"); err == nil {
-		t.Fatal("token should be invalid")
-	}
+	isNotNil(t, TokenAuth(user.Name, "invalid"), "token should be invalid")
 
 	token, err := user.CreateToken()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := TokenAuth(user.Name, token); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, err)
+	isNil(t, TokenAuth(user.Name, token))
 
 	tokens, err := user.GetTokens()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(tokens) != 1 {
-		t.Fatal("the user should have one token")
-	}
+	isNil(t, err)
+	isEqual(t, len(tokens), 1)
 
 	_, err = db.Exec("UPDATE token SET expiration = ? WHERE tokenID = ?",
 			time.Now().Unix() - 1, tokens[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := TokenAuth(user.Name, token); err == nil {
-		t.Fatal("token should be expired")
-	}
+	isNil(t, err)
+	isNotNil(t, TokenAuth(user.Name, token), "token should be expired")
 }

@@ -160,7 +160,7 @@ func AddUserAccess(c gig.Context) error {
 	if err != nil {
 		return err
 	}
-	err = db.AddUserAccess(user.ID, repo.RepoID, query)
+	err = user.AddUserAccess(repo, query)
 	if err != nil {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Invalid user")
@@ -170,11 +170,11 @@ func AddUserAccess(c gig.Context) error {
 }
 
 func AddGroupAccess(c gig.Context) error {
-	query, _, repo, err := addAcess(c, "Group")
+	query, user, repo, err := addAcess(c, "Group")
 	if err != nil {
 		return err
 	}
-	err = db.AddGroupAccess(repo.RepoID, query)
+	err = user.AddGroupAccess(repo, query)
 	if err != nil {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Invalid user")
@@ -194,7 +194,7 @@ func RemoveUserAccess(c gig.Context) error {
                                    "User not found")
 	}
 	repo, err := user.GetRepo(c.Param("repo"))
-	err = db.RemoveUserAccess(repo.RepoID, userID)
+	err = user.RemoveUserAccess(repo, userID)
 	if err != nil {
                 return c.NoContent(gig.StatusBadRequest,
                                    "User doesn't have access")
@@ -214,7 +214,7 @@ func RemoveGroupAccess(c gig.Context) error {
                                    "Group not found")
 	}
 	repo, err := user.GetRepo(c.Param("repo"))
-	err = db.RemoveGroupAccess(repo.RepoID, groupID)
+	err = user.RemoveGroupAccess(repo, groupID)
 	if err != nil {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Group doesn't have access")

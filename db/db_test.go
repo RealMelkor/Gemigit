@@ -7,6 +7,30 @@ import (
 	"os"
 )
 
+func isNil(t *testing.T, err error) {
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func isNotNil(t *testing.T, err error, message string) {
+	if err == nil {
+		t.Fatal(message)
+	}
+}
+
+func isEqual(t *testing.T, x interface{}, y interface{}) {
+	if x != y {
+		t.Fatal(x, " != ", y)
+	}
+}
+
+func isNotEqual(t *testing.T, x interface{}, y interface{}) {
+	if x == y {
+		t.Fatal(x, " != ", y)
+	}
+}
+
 func funcName(t *testing.T) string {
 	fpcs := make([]uintptr, 1)
 
@@ -36,29 +60,17 @@ func initDB(t *testing.T) {
 	initialized = true
 	os.Remove("test.db")
 
-	if err := Init("sqlite3", "test.db", false); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Init("sqlite3", "test.db", false))
 }
 
 func TestDB(t *testing.T) {
 	initDB(t)
-	if err := Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Init("sqlite3", "/invalid/test.db", false); err == nil {
-		t.Fatal("should be unable to create database")
-	}
-
-	if err := Init("invalid", "test.db", false); err == nil {
-		t.Fatal("should be unable to open database")
-	}
-
-	if err := Init("sqlite3", "test.db", false); err != nil {
-		t.Fatal(err)
-	}
-
+	isNil(t, Close())
+	isNotNil(t, Init("sqlite3", "/invalid/test.db", false),
+			"should be unable to create database")
+	isNotNil(t, Init("invalid", "test.db", false),
+			"should be unable to open database")
+	isNil(t, Init("sqlite3", "test.db", false))
 }
 
 func TestUpdateTable(t *testing.T) {
@@ -66,124 +78,10 @@ func TestUpdateTable(t *testing.T) {
 	initDB(t)
 
 	_, err := db.Exec("ALTER TABLE user DROP COLUMN description;")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	isNil(t, err)
 
 	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, Register(username, validPassword))
 
 	UpdateTable()
 }
-
-/*
-func TestSession(t *testing.T) {
-
-	initDB(t)
-
-	username := funcName(t)
-	if err := Register(username, validPassword); err != nil {
-		t.Fatal(err)
-	}
-
-	signature := username + "_signature"
-
-	user, err := FetchUser(username + "a", signature)
-	if err == nil {
-		t.Fatal("should return user not found", user)
-	}
-
-	user, err = FetchUser(username, signature)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.CreateSession(signature); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.CreateSession(signature); err == nil {
-		t.Fatal("should not be able to add the same signature")
-	}
-
-	id, err := GetUserID(username)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if id != user.ID {
-		t.Fatal("GetUserID should return the same id as FetchUser")
-	}
-	_, err = GetUserID(username + "a")
-	if err == nil {
-		t.Fatal("GetUserID should return user not found")
-	}
-
-	user, b := GetUser(signature)
-	if !b || user.Name != username {
-		t.Fatal("GetUser should return the same user")
-	}
-
-	user, b = GetUser(signature + "a")
-	if b {
-		t.Fatal("GetUser should return false")
-	}
-
-	delete(users, signature)
-
-	user, b = GetUser(signature)
-	if !b || user.Name != username {
-		t.Fatal("GetUser should return the same user")
-	}
-}
-*/
-
-/*
-func TestVerifySignature(t *testing.T) {
-
-	first := funcName(t) + "0"
-	second := funcName(t) + "1"
-	first_signature := first + "_signature"
-	second_signature := second + "_signature"
-
-	if err := Register(first, validPassword); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Register(second, validPassword); err != nil {
-		t.Fatal(err)
-	}
-
-	user, err := FetchUser(first, first_signature)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	other, err := FetchUser(second, second_signature)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.CreateSession(first_signature); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := other.CreateSession(second_signature); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.VerifySignature(first_signature); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.VerifySignature(first_signature + "a"); err == nil {
-		t.Fatal("the signature should be wrong")
-	}
-
-	if err := user.VerifySignature(second_signature); err == nil {
-		t.Fatal("the signature should not match")
-	}
-}
-*/

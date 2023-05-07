@@ -9,10 +9,8 @@ func TestCreateSession(t *testing.T) {
 	initDB(t)
 
 	user, _, signature := createUserAndSession(t)
-
-	if err := user.CreateSession(signature); err == nil {
-		t.Fatal("should not be able to add the same signature")
-	}
+	isNotNil(t, user.CreateSession(signature),
+			"should not be able to add the same signature")
 }
 
 func TestDisconnect(t *testing.T) {
@@ -21,13 +19,9 @@ func TestDisconnect(t *testing.T) {
 
 	user, _, signature := createUserAndSession(t)
 
-	if err := user.Disconnect(signature); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.Disconnect(signature); err == nil {
-		t.Fatal("should be already disconnected")
-	}
+	isNil(t, user.Disconnect(signature))
+	isNotNil(t, user.Disconnect(signature),
+			"should be already disconnected")
 }
 
 func TestGetSessionsCount(t *testing.T) {
@@ -37,22 +31,20 @@ func TestGetSessionsCount(t *testing.T) {
 	user, _, _ := createUserAndSession(t)
 
 	count, err := user.GetSessionsCount()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatal("there should be 1 sessions but there is ", count)
-	}
+	isNil(t, err)
+	isEqual(t, count, 1)
+
+	isNil(t, user.CreateSession("new_signature"))
+
+	count, err = user.GetSessionsCount()
+	isNil(t, err)
+	isEqual(t, count, 2)
 
 	user.ID = -1
 
 	count, err = user.GetSessionsCount()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 0 {
-		t.Fatal("there should be 0 sessions but there is ", count)
-	}
+	isNil(t, err)
+	isEqual(t, count, 0)
 }
 
 func TestDisconnectAll(t *testing.T) {
@@ -60,16 +52,8 @@ func TestDisconnectAll(t *testing.T) {
 	initDB(t)
 
 	user, _, signature := createUserAndSession(t)
-
-	if err := user.CreateSession(signature + "b"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := user.DisconnectAll(signature + "a"); err == nil {
-		t.Fatal("should return invalid signature")
-	}
-
-	if err := user.DisconnectAll(signature); err != nil {
-		t.Fatal(err)
-	}
+	isNil(t, user.CreateSession(signature + "b"))
+	isNotNil(t, user.DisconnectAll(signature + "a"),
+			"should return invalid signature")
+	isNil(t, user.DisconnectAll(signature))
 }

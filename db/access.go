@@ -177,10 +177,16 @@ func SetGroupAccess(repoID int, groupID int, privilege int) (error) {
 	return err
 }
 
-func RemoveGroupAccess(repoID int, groupID int) error {
+func (u *User) RemoveGroupAccess(repo Repo, groupID int) error {
+
+	if repo.UserID != u.ID {
+		return errors.New(
+			"Only the repository owner can revoke access")
+	}
+
 	statement, err := db.Exec("DELETE FROM access " +
 				  "WHERE groupID = ? AND repoID = ?",
-				  groupID, repoID)
+				  groupID, repo.RepoID)
 	if err != nil {
 		return err
 	}
@@ -195,19 +201,26 @@ func RemoveGroupAccess(repoID int, groupID int) error {
 
 }
 
-func AddUserAccess(owner int, repoID int, user string) error {
+func (u *User) AddUserAccess(repo Repo, user string) error {
+
+	if repo.UserID != u.ID {
+		return errors.New(
+			"Only the repository owner can add members")
+	}
+
 	userID, err := GetUserID(user)
 	if err != nil {
 		return err
 	}
-	if userID == owner {
+	
+	if userID == u.ID {
 		return errors.New(
 			"The repository owner already has maximum privilege")
 	}
 
 	rows, err := db.Query("SELECT privilege FROM access " +
 			      "WHERE repoID = ? AND userID = ? ",
-			      repoID, userID)
+			      repo.RepoID, userID)
 	if err != nil {
 		return err
 	}
@@ -217,14 +230,20 @@ func AddUserAccess(owner int, repoID int, user string) error {
 	}
 
 	_, err = db.Exec("INSERT INTO access (repoID, userID, privilege) " +
-			 "VALUES(?, ?, 1)", repoID, userID)
+			 "VALUES(?, ?, 1)", repo.RepoID, userID)
 	if err != nil {
 		log.Println(err.Error())
 	}
 	return err
 }
 
-func AddGroupAccess(repoID int, group string) error {
+func (u *User) AddGroupAccess(repo Repo, group string) error {
+
+	if repo.UserID != u.ID {
+		return errors.New(
+			"Only the repository owner can add groups")
+	}
+
 	groupID, err := GetGroupID(group)
 	if err != nil {
 		return err
@@ -232,7 +251,7 @@ func AddGroupAccess(repoID int, group string) error {
 
 	rows, err := db.Query("SELECT privilege FROM access " +
 			      "WHERE repoID = ? AND groupID = ? ",
-			      repoID, groupID)
+			      repo.RepoID, groupID)
 	if err != nil {
 		return err
 	}
@@ -242,17 +261,21 @@ func AddGroupAccess(repoID int, group string) error {
 	}
 
 	_, err = db.Exec("INSERT INTO access (repoID, groupID, privilege) " +
-			 "VALUES(?, ?, 1)", repoID, groupID)
+			 "VALUES(?, ?, 1)", repo.RepoID, groupID)
 	if err != nil {
 		log.Println(err.Error())
 	}
 	return err
 }
 
-func RemoveUserAccess(repoID int, userID int) error {
+func (u *User) RemoveUserAccess(repo Repo, userID int) error {
+	if u.ID != repo.UserID {
+		return errors.New(
+			"Only the repository owner can revoke access")
+	}
 	statement, err := db.Exec("DELETE FROM access " +
 				  "WHERE userID = ? AND repoID = ?",
-				  userID, repoID)
+				  userID, repo.RepoID)
 	if err != nil {
 		return err
 	}
