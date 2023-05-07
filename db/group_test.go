@@ -10,7 +10,7 @@ func TestCreateGroup(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	err := user.CreateGroup(group, signature + "a")
@@ -30,7 +30,7 @@ func TestGetGroupID(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group1 := funcName(t) + "a"
 	group2 := funcName(t) + "b"
 	
@@ -58,7 +58,7 @@ func TestSetGroupDescription(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
@@ -79,7 +79,7 @@ func TestGetGroupDesc(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 	description := group + "-description"
 
@@ -104,7 +104,7 @@ func TestGetGroupOwner(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
@@ -123,20 +123,23 @@ func TestAddUserToGroup(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	member2, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	member2, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
 
-	isNil(t, AddUserToGroup(group, member1.Name))
-	isNil(t, AddUserToGroup(group, member2.Name))
-	isNotNil(t, AddUserToGroup(group, member2.Name),
+	isNotNil(t, member1.AddUserToGroup(group, member1.Name),
+			"only the group owner can add members")
+
+	isNil(t, user.AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member2.Name))
+	isNotNil(t, user.AddUserToGroup(group, member2.Name),
 			"user should already be in the group")
-	isNotNil(t, AddUserToGroup(group, member2.Name + "a"),
+	isNotNil(t, user.AddUserToGroup(group, member2.Name + "a"),
 			"user should be invalid")
-	isNotNil(t, AddUserToGroup(group + "a", member2.Name),
+	isNotNil(t, user.AddUserToGroup(group + "a", member2.Name),
 			"group should be invalid")
 
 }
@@ -145,19 +148,19 @@ func TestDeleteGroup(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	member2, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	member2, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
 	id, err := GetGroupID(group)
 	isNil(t, err)
 
-	isNil(t, AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member1.Name))
 	isNil(t, DeleteGroup(id))
 	isNotNil(t, DeleteGroup(id), "group should be invalid")
-	isNotNil(t, AddUserToGroup(group, member2.Name),
+	isNotNil(t, user.AddUserToGroup(group, member2.Name),
 			"group should be invalid")
 
 }
@@ -166,17 +169,17 @@ func TestDeleteMember(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	member2, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	member2, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
 	id, err := GetGroupID(group)
 	isNil(t, err)
 
-	isNil(t, AddUserToGroup(group, member1.Name))
-	isNil(t, AddUserToGroup(group, member2.Name))
+	isNil(t, user.AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member2.Name))
 
 	isNil(t, DeleteMember(member1.ID, id))
 	isNotNil(t, DeleteMember(member1.ID, id),
@@ -198,16 +201,16 @@ func TestIsInGroupID(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	member2, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	member2, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
 	id, err := GetGroupID(group)
 	isNil(t, err)
 
-	isNil(t, AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member1.Name))
 
 	b, err := member1.IsInGroupID(id)
 	isNil(t, err)
@@ -226,14 +229,14 @@ func TestIsInGroup(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	member2, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	member2, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
 
-	isNil(t, AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member1.Name))
 
 	b, err := member1.IsInGroup(group)
 	isNil(t, err)
@@ -254,15 +257,15 @@ func TestGetGroups(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	member2, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	member2, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
 	isNil(t, user.CreateGroup(group + "2", signature))
 
-	isNil(t, AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member1.Name))
 
 	groups, err := user.GetGroups()
 	isNil(t, err)
@@ -282,8 +285,8 @@ func TestGetMembers(t *testing.T) {
 
 	initDB(t)
 
-	member1, _, _ := createUserAndSession(t)
-	user, _, signature := createUserAndSession(t)
+	member1, _ := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	group := funcName(t)
 
 	isNil(t, user.CreateGroup(group, signature))
@@ -293,7 +296,7 @@ func TestGetMembers(t *testing.T) {
 	isNil(t, err)
 	isEqual(t, len(members), 1)
 
-	isNil(t, AddUserToGroup(group, member1.Name))
+	isNil(t, user.AddUserToGroup(group, member1.Name))
 
 	members, err = user.GetMembers(group)
 	isNil(t, err)

@@ -148,7 +148,7 @@ func AddToGroup(c gig.Context) (error) {
                 return c.NoContent(gig.StatusBadRequest, "Permission denied")
 	}
 
-	if err = db.AddUserToGroup(group, query); err != nil {
+	if err = user.AddUserToGroup(group, query); err != nil {
                 return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	return c.NoContent(gig.StatusRedirectTemporary,

@@ -8,7 +8,7 @@ func TestCreateSession(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	isNotNil(t, user.CreateSession(signature),
 			"should not be able to add the same signature")
 }
@@ -17,7 +17,7 @@ func TestDisconnect(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNil(t, user.Disconnect(signature))
 	isNotNil(t, user.Disconnect(signature),
@@ -28,7 +28,7 @@ func TestGetSessionsCount(t *testing.T) {
 
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	count, err := user.GetSessionsCount()
 	isNil(t, err)
@@ -51,7 +51,7 @@ func TestDisconnectAll(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	isNil(t, user.CreateSession(signature + "b"))
 	isNotNil(t, user.DisconnectAll(signature + "a"),
 			"should return invalid signature")

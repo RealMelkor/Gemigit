@@ -55,22 +55,22 @@ func Login(name string, password string,
 }
 
 func hasAccess(repo string, author string, user string, access int) error {
-	userID, err := db.GetUserID(user)
+	wantAccess, err := db.GetPublicUser(user)
 	if err != nil {
 		return err
 	}
-	u, err := db.GetPublicUser(author)
+	owner, err := db.GetPublicUser(author)
 	if err != nil {
 		return err
 	}
-	r, err := u.GetRepo(repo)
+	toRepository, err := owner.GetRepo(repo)
 	if err != nil {
 		return err
 	}
-	if r.UserID == userID {
+	if toRepository.UserID == wantAccess.ID {
 		return nil
 	}
-	privilege, err := db.GetAccess(r.RepoID, userID)
+	privilege, err := db.GetAccess(wantAccess, toRepository)
 	if err != nil {
 		return err
 	}

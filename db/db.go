@@ -13,30 +13,30 @@ import (
 )
 
 type Repo struct {
-	RepoID      int
-	UserID      int
-	Username    string
-	Name        string
-	Date        int
-	IsPublic    bool
-	Description string
+	ID		int
+	UserID		int
+	Username	string
+	Name		string
+	Date		int
+	IsPublic	bool
+	Description	string
 }
 
 type User struct {
-	ID           int
-	Name         string
-	Description  string
-	Registration int
-	Connection   time.Time
-	Signature    string
-	Secret       string
-	SecureGit    bool
+	ID		int
+	Name		string
+	Description	string
+	Registration	int
+	Connection	time.Time
+	Signature	string
+	Secret		string
+	SecureGit	bool
 }
 
 type Group struct {
-	GroupID     int
-	Name        string
-	Description string
+	ID		int
+	Name		string
+	Description	string
 }
 
 type Member struct {

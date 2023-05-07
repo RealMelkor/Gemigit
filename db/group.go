@@ -104,7 +104,14 @@ func IsInGroup(userID int, groupID int) (error) {
 	return nil
 }
 
-func AddUserToGroup(group string, user string) error {
+func (u User) AddUserToGroup(group string, user string) error {
+	owner, err := GetGroupOwner(group)
+	if err != nil {
+		return err
+	}
+	if u.ID != owner.UserID {
+		return errors.New("only the group owner can add members")
+	}
 	id, err := GetGroupID(group)
 	if err != nil {
 		return err
@@ -265,7 +272,7 @@ func (user User) GetGroups() ([]Group, error) {
 	var groups []Group
 	for rows.Next() {
 		var g = Group{}
-		err = rows.Scan(&g.GroupID, &g.Name, &g.Description)
+		err = rows.Scan(&g.ID, &g.Name, &g.Description)
 		if err != nil {
 			return nil, err
 		}

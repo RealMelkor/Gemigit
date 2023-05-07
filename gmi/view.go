@@ -139,7 +139,7 @@ func ShowAccount(c gig.Context) (error) {
 			repoNames = append(repoNames, repo.Name)
 		}
 	}
-	accessRepos, err := db.HasReadAccessTo(user.ID)
+	accessRepos, err := user.HasReadAccessTo()
 	sessions, err := user.GetSessionsCount()
 	if err != nil {
 		log.Println(err)
@@ -512,11 +512,11 @@ func ShowAccess(c gig.Context) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	access, err := db.GetRepoAccess(repo.RepoID)
+	access, err := db.GetRepoUserAccess(repo.ID)
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	groups, err := db.GetRepoGroupAccess(repo.RepoID)
+	groups, err := db.GetRepoGroupAccess(repo.ID)
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}

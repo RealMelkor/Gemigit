@@ -11,7 +11,7 @@ func TestCreateRepo(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNotNil(t, user.CreateRepo(invalidRepoName, signature),
 			"name should be invalid")
@@ -26,7 +26,7 @@ func TestGetRepoID(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNil(t, user.CreateRepo(validRepoName, signature))
 	_, err := GetRepoID(validRepoName, user.ID)
@@ -42,7 +42,7 @@ func TestChangeRepoName(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNil(t, user.CreateRepo(validRepoName, signature))
 
@@ -77,7 +77,7 @@ func TestChangeRepoDesc(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	description := funcName(t)
 
 	isNil(t, user.CreateRepo(validRepoName, signature))
@@ -97,7 +97,7 @@ func TestGetRepoDesc(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	description := funcName(t)
 	
 	_, err := GetRepoDesc(validRepoName, user.Name)
@@ -114,7 +114,7 @@ func TestDeleteRepo(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	isNil(t, user.CreateRepo(validRepoName, signature))
 	isNotNil(t, user.DeleteRepo(validRepoName, signature + "a"),
 			"signature should be invalid")
@@ -129,7 +129,7 @@ func TestIsRepoPublic(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNil(t, user.CreateRepo(validRepoName, signature))
 
@@ -163,7 +163,7 @@ func TestGetPublicRepo(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNil(t, user.CreateRepo(validRepoName, signature))
 	isNil(t, user.CreateRepo(validRepoName + "a", signature))
@@ -190,7 +190,7 @@ func TestGetRepos(t *testing.T) {
 
 	initDB(t)
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
 	isNil(t, user.CreateRepo(validRepoName, signature))
 	isNil(t, user.CreateRepo(validRepoName + "a", signature))

@@ -201,7 +201,7 @@ func (user User) GetRepo(reponame string) (Repo, error) {
 	defer rows.Close()
 	if rows.Next() {
 		var r = Repo{}
-		err = rows.Scan(&r.RepoID, &r.UserID, &r.Name,
+		err = rows.Scan(&r.ID, &r.UserID, &r.Name,
 				&r.Date, &r.IsPublic, &r.Description)
 		if err != nil {
 			return Repo{}, err
@@ -227,7 +227,7 @@ func (user User) GetRepos(onlyPublic bool) ([]Repo, error) {
 	var repos []Repo
 	for rows.Next() {
 		var r = Repo{}
-		err = rows.Scan(&r.RepoID, &r.UserID, &r.Name,
+		err = rows.Scan(&r.ID, &r.UserID, &r.Name,
 				&r.Date, &r.IsPublic, &r.Description)
 		if err != nil {
 			return nil, err
@@ -249,7 +249,7 @@ func GetPublicRepo() ([]Repo, error) {
 	var repos []Repo
 	for rows.Next() {
 		var r = Repo{}
-		err = rows.Scan(&r.Username, &r.RepoID, &r.UserID, &r.Name,
+		err = rows.Scan(&r.Username, &r.ID, &r.UserID, &r.Name,
 				&r.Date, &r.IsPublic, &r.Description)
 		if err != nil {
 			return nil, err

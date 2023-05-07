@@ -11,7 +11,7 @@ const tooLongDescription =
 	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 var usersCount = 0
-func createUserAndSession(t *testing.T) (User, string, string) {
+func createUserAndSession(t *testing.T) (User, string) {
 
 	usersCount += 1
 
@@ -24,29 +24,29 @@ func createUserAndSession(t *testing.T) (User, string, string) {
 
 	isNil(t, user.CreateSession(signature))
 
-	return user, username, signature
+	return user, signature
 }
 
 func TestGetUserID(t *testing.T) {
 
-	user, username, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 	
-	id, err := GetUserID(username)
+	id, err := GetUserID(user.Name)
 	isNil(t, err)
 
 	isEqual(t, id, user.ID)
 
-	_, err = GetUserID(username + "a")
+	_, err = GetUserID(user.Name + "a")
 	isNotNil(t, err, "GetUserID should return user not found")
 }
 
 func TestGetUser(t *testing.T) {
 
-	_, username, signature := createUserAndSession(t)
+	_, signature := createUserAndSession(t)
 
 	user, b := GetUser(signature)
 	isEqual(t, b, true)
-	isEqual(t, user.Name, username)
+	isEqual(t, user.Name, user.Name)
 
 	user, b = GetUser(signature + "a")
 	isEqual(t, b, false)
@@ -55,7 +55,7 @@ func TestGetUser(t *testing.T) {
 
 	user, b = GetUser(signature)
 	isEqual(t, b, true)
-	isEqual(t, user.Name, username)
+	isEqual(t, user.Name, user.Name)
 }
 
 func TestGetPublicUser(t *testing.T) {
@@ -94,19 +94,19 @@ func TestChangePassword(t *testing.T) {
 
 	initDB(t)
 
-	user, username, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
-	isNil(t, CheckAuth(username, validPassword))
+	isNil(t, CheckAuth(user.Name, validPassword))
 	isNotNil(t, user.ChangePassword(invalidPassword, signature), 
 			"password should be invalid")
 	isNotNil(t, user.ChangePassword(validPassword + "a", signature + "a"),
 			"signature should be invalid")
 	isNil(t, user.ChangePassword(validPassword + "a", signature))
-	isNotNil(t, ChangePassword(username + "a", validPassword),
+	isNotNil(t, ChangePassword(user.Name+ "a", validPassword),
 			"username shoudl be invalid")
-	isNotNil(t, CheckAuth(username, validPassword),
+	isNotNil(t, CheckAuth(user.Name, validPassword),
 			"credential should be invalid")
-	isNil(t, CheckAuth(username, validPassword + "a"))
+	isNil(t, CheckAuth(user.Name, validPassword + "a"))
 }
 
 func TestRegistration(t *testing.T) {
@@ -168,9 +168,9 @@ func TestChangeDescription(t *testing.T) {
 
 	initDB(t)
 
-	user, username, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 
-	isNotNil(t, user.ChangeDescription(username, "bad_signature"),
+	isNotNil(t, user.ChangeDescription(user.Name, "bad_signature"),
 			"should return invalid signature")
 
 	isNil(t, user.ChangeDescription("my description", signature))
@@ -186,7 +186,7 @@ func TestUpdateDescription(t *testing.T) {
 	var u User
 	isNotNil(t, u.UpdateDescription(), "should return sql error")
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	description := "testing"
 
@@ -202,7 +202,7 @@ func TestSetSecret(t *testing.T) {
 
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 	isNil(t, user.SetSecret("secret"))
 
 	user.ID = -1

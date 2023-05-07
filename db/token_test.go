@@ -9,7 +9,7 @@ func TestCreateToken(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	_, err := user.CreateToken()
 	isNil(t, err)
@@ -19,7 +19,7 @@ func TestRenewToken(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	isNotNil(t, user.RenewToken(-1), "token id should be invalid")
 
@@ -38,7 +38,7 @@ func TestDeleteToken(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	isNotNil(t, user.DeleteToken(-1), "token id should be invalid")
 
@@ -56,7 +56,7 @@ func TestGetTokens(t *testing.T) {
 	
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	user.GetTokens()
 
@@ -92,7 +92,7 @@ func TestCanUsePassword(t *testing.T) {
 	_, err := CanUsePassword("invalid", "invalid", "invalid")
 	isNotNil(t, err, "should return user not found")
 
-	user, _, signature := createUserAndSession(t)
+	user, signature := createUserAndSession(t)
 	repo := funcName(t)
 
 	_, err = CanUsePassword("invalid", user.Name, user.Name)
@@ -121,7 +121,7 @@ func TestTokenAuth(t *testing.T) {
 
 	initDB(t)
 
-	user, _, _ := createUserAndSession(t)
+	user, _ := createUserAndSession(t)
 
 	isNotNil(t, TokenAuth(user.Name, "invalid"), "token should be invalid")
 

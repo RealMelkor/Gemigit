@@ -5,11 +5,17 @@ import (
 	"log"
 )
 
-func GetUserGroupAccess(repoID int, userID int) (int, error) {
+const accessNone = 0
+const accessRead = 1
+const accessReadWrite = 2
+const accessDefault = 1
+const accessMax = 2
+
+func GetUserGroupAccess(repo Repo, user User) (int, error) {
 	rows, err := db.Query("SELECT a.privilege FROM access a " +
 			      "INNER JOIN member m ON a.groupID = m.groupID " +
 			      "WHERE a.repoID = ? AND m.userID = ?",
-			      repoID, userID)
+			      repo.ID, user.ID)
 	if err != nil {
 		return -1, err
 	}
@@ -28,16 +34,19 @@ func GetUserGroupAccess(repoID int, userID int) (int, error) {
 	return privilege, nil
 }
 
-func GetUserAccess(repoID int, userID int) (int, error) {
+func GetUserAccess(repo Repo, user User) (int, error) {
+	if user.ID == repo.UserID {
+		return accessMax, nil
+	}
 	rows, err := db.Query("SELECT privilege FROM access " +
 			     "WHERE repoID = ? AND userID = ? ",
-			     repoID, userID)
+			     repo.ID, user.ID)
 	if err != nil {
 		return -1, err
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return -1, errors.New("The user is not a contributor")
+		return accessNone, nil
 	}
 	var privilege int
 	err = rows.Scan(&privilege)
@@ -47,15 +56,15 @@ func GetUserAccess(repoID int, userID int) (int, error) {
 	return privilege, nil
 }
 
-func GetAccess(repoID int, userID int) (int, error) {
-	privilege, err := GetUserGroupAccess(repoID, userID)
+func GetAccess(user User, repo Repo) (int, error) {
+	privilege, err := GetUserGroupAccess(repo, user)
 	if err != nil {
 		return -1, err
 	}
-	if privilege == 2 {
-		return 2, nil
+	if privilege == accessMax {
+		return accessMax, nil
 	}
-	p, err := GetUserAccess(repoID, userID)
+	p, err := GetUserAccess(repo, user)
 	if err != nil {
 		return -1, err
 	}
@@ -65,14 +74,22 @@ func GetAccess(repoID int, userID int) (int, error) {
 	return p, nil
 }
 
-func SetUserAccess(repoID int, userID int, privilege int) (error) {
+func (u User) SetUserAccess(repo Repo, userID int, privilege int) (error) {
+	if repo.UserID != u.ID {
+		return errors.New(
+			"only the repository owner can manage access")
+	}
+	if u.ID == userID {
+		return errors.New(
+			"the repository owner access cannot be changed")
+	}
 	_, err := db.Exec("UPDATE access SET privilege = ? " +
 			  "WHERE repoID = ? AND userID = ?",
-			  privilege, repoID, userID)
+			  privilege, repo.ID, userID)
 	return err
 }
 
-func GetRepoAccess(repoID int) ([]Access, error) {
+func GetRepoUserAccess(repoID int) ([]Access, error) {
 	rows, err := db.Query("SELECT a.repoID, a.userID, b.name, " +
 			      "a.privilege FROM access a " +
 			      "INNER JOIN user b ON a.userID = b.userID " +
@@ -107,7 +124,7 @@ func GetRepoGroupAccess(repoID int) ([]Access, error) {
 	var access []Access
 	for rows.Next() {
 		var a = Access{}
-		err = rows.Scan(&a.RepoID, &a.UserID, &a.Name, &a.Privilege)
+		err = rows.Scan(&a.RepoID, &a.GroupID, &a.Name, &a.Privilege)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +133,7 @@ func GetRepoGroupAccess(repoID int) ([]Access, error) {
 	return access, nil
 }
 
-func HasReadAccessTo(userID int) ([]Repo, error) {
+func (u User) HasReadAccessTo() ([]Repo, error) {
 	rows, err := db.Query("SELECT r.repoID, r.userID, r.name, " +
 			      "r.creation, r.public, r.description, u.Name " +
 			      "FROM access a " +
@@ -133,7 +150,7 @@ func HasReadAccessTo(userID int) ([]Repo, error) {
 			      "INNER JOIN user u ON r.userID = u.userID " +
 			      "WHERE a.userID = ? AND a.privilege > 0 " +
 			      "AND ? <> r.userID",
-			      userID, userID, userID, userID)
+			      u.ID, u.ID, u.ID, u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +158,7 @@ func HasReadAccessTo(userID int) ([]Repo, error) {
 	repos := []Repo{}
 	for rows.Next() {
 		var r Repo
-		err = rows.Scan(&r.RepoID, &r.UserID, &r.Name, &r.Date,
+		err = rows.Scan(&r.ID, &r.UserID, &r.Name, &r.Date,
 				&r.IsPublic, &r.Description, &r.Username)
 		if err != nil {
 			return nil, err
@@ -151,10 +168,10 @@ func HasReadAccessTo(userID int) ([]Repo, error) {
 	return repos, nil
 }
 
-func GetGroupAccess(repoID int, groupID int) (int, error) {
+func GetGroupAccess(repo Repo, groupID int) (int, error) {
 	rows, err := db.Query("SELECT privilege FROM access " +
 			      "WHERE repoID = ? AND groupID = ? ",
-			      repoID, groupID)
+			      repo.ID, groupID)
 	if err != nil {
 		return -1, err
 	}
@@ -170,14 +187,18 @@ func GetGroupAccess(repoID int, groupID int) (int, error) {
 	return privilege, nil
 }
 
-func SetGroupAccess(repoID int, groupID int, privilege int) (error) {
+func (u User) SetGroupAccess(repo Repo, groupID int, privilege int) (error) {
+	if repo.UserID != u.ID {
+		return errors.New(
+			"only the repository owner can manage access")
+	}
 	_, err := db.Exec("UPDATE access SET privilege = ? " +
 			  "WHERE repoID = ? AND groupID = ?",
-			  privilege, repoID, groupID)
+			  privilege, repo.ID, groupID)
 	return err
 }
 
-func (u *User) RemoveGroupAccess(repo Repo, groupID int) error {
+func (u User) RemoveGroupAccess(repo Repo, groupID int) error {
 
 	if repo.UserID != u.ID {
 		return errors.New(
@@ -186,7 +207,7 @@ func (u *User) RemoveGroupAccess(repo Repo, groupID int) error {
 
 	statement, err := db.Exec("DELETE FROM access " +
 				  "WHERE groupID = ? AND repoID = ?",
-				  groupID, repo.RepoID)
+				  groupID, repo.ID)
 	if err != nil {
 		return err
 	}
@@ -220,7 +241,7 @@ func (u *User) AddUserAccess(repo Repo, user string) error {
 
 	rows, err := db.Query("SELECT privilege FROM access " +
 			      "WHERE repoID = ? AND userID = ? ",
-			      repo.RepoID, userID)
+			      repo.ID, userID)
 	if err != nil {
 		return err
 	}
@@ -230,7 +251,7 @@ func (u *User) AddUserAccess(repo Repo, user string) error {
 	}
 
 	_, err = db.Exec("INSERT INTO access (repoID, userID, privilege) " +
-			 "VALUES(?, ?, 1)", repo.RepoID, userID)
+			 "VALUES(?, ?, 1)", repo.ID, userID)
 	if err != nil {
 		log.Println(err.Error())
 	}
@@ -251,7 +272,7 @@ func (u *User) AddGroupAccess(repo Repo, group string) error {
 
 	rows, err := db.Query("SELECT privilege FROM access " +
 			      "WHERE repoID = ? AND groupID = ? ",
-			      repo.RepoID, groupID)
+			      repo.ID, groupID)
 	if err != nil {
 		return err
 	}
@@ -261,7 +282,7 @@ func (u *User) AddGroupAccess(repo Repo, group string) error {
 	}
 
 	_, err = db.Exec("INSERT INTO access (repoID, groupID, privilege) " +
-			 "VALUES(?, ?, 1)", repo.RepoID, groupID)
+			 "VALUES(?, ?, 1)", repo.ID, groupID)
 	if err != nil {
 		log.Println(err.Error())
 	}
@@ -275,7 +296,7 @@ func (u *User) RemoveUserAccess(repo Repo, userID int) error {
 	}
 	statement, err := db.Exec("DELETE FROM access " +
 				  "WHERE userID = ? AND repoID = ?",
-				  userID, repo.RepoID)
+				  userID, repo.ID)
 	if err != nil {
 		return err
 	}

@@ -49,9 +49,9 @@ func accessSecondOption(privilege int) string {
 	}
 }
 
-func changeGroupAccess(user db.User, repo string,
+func changeGroupAccess(user db.User, repository string,
 		       name string, first bool) error {
-	r, err := user.GetRepo(repo)
+	repo, err := user.GetRepo(repository)
 	if err != nil {
 		return err
 	}
@@ -59,12 +59,12 @@ func changeGroupAccess(user db.User, repo string,
 	if err != nil {
 		return err
 	}
-	privilege, err := db.GetGroupAccess(r.RepoID, groupID)
+	privilege, err := db.GetGroupAccess(repo, groupID)
 	if err != nil {
 		return err
 	}
 	privilege = privilegeUpdate(privilege, first)
-	err = db.SetGroupAccess(r.RepoID, groupID, privilege)
+	err = user.SetGroupAccess(repo, groupID, privilege)
 	return err
 }
 
@@ -90,22 +90,22 @@ func GroupAccessSecondOption(c gig.Context) error {
 	return groupAccessOption(c, false)
 }
 
-func changeUserAccess(user db.User, repo string,
+func changeUserAccess(owner db.User, repository string,
 		      name string, first bool) error {
-	r, err := user.GetRepo(repo)
+	repo, err := owner.GetRepo(repository)
 	if err != nil {
 		return err
 	}
-	userID, err := db.GetUserID(name)
+	user, err := db.GetPublicUser(name)
 	if err != nil {
 		return err
 	}
-	privilege, err := db.GetUserAccess(r.RepoID, userID)
+	privilege, err := db.GetUserAccess(repo, user)
 	if err != nil {
 		return err
 	}
 	privilege = privilegeUpdate(privilege, first)
-	err = db.SetUserAccess(r.RepoID, userID, privilege)
+	err = owner.SetUserAccess(repo, user.ID, privilege)
 	return err
 }
 

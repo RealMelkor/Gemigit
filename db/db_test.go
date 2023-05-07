@@ -5,29 +5,39 @@ import (
 	"runtime"
 	"strings"
 	"os"
+	"strconv"
 )
+
+func fileAndLine() string {
+	_, file, no, ok := runtime.Caller(2)
+	if !ok {
+		return ""
+	}
+	path := strings.Split(file, "/")
+	return path[len(path) - 1] + ":" + strconv.Itoa(no) + ":"
+}
 
 func isNil(t *testing.T, err error) {
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(fileAndLine(), err)
 	}
 }
 
 func isNotNil(t *testing.T, err error, message string) {
 	if err == nil {
-		t.Fatal(message)
+		t.Fatal(fileAndLine(), message)
 	}
 }
 
 func isEqual(t *testing.T, x interface{}, y interface{}) {
 	if x != y {
-		t.Fatal(x, " != ", y)
+		t.Fatal(fileAndLine(), x, " != ", y)
 	}
 }
 
 func isNotEqual(t *testing.T, x interface{}, y interface{}) {
 	if x == y {
-		t.Fatal(x, " != ", y)
+		t.Fatal(fileAndLine(), x, " != ", y)
 	}
 }
 
