@@ -64,23 +64,45 @@ const invalidUsername = "0user"
 
 var initialized bool
 func initDB(t *testing.T) {
+
 	if initialized {
 		return
 	}
-	initialized = true
-	os.Remove("test.db")
 
 	isNil(t, Init("sqlite3", "test.db", false))
+
+	_, err := db.Exec("DELETE FROM token;")
+	isNil(t, err)
+	_, err = db.Exec("DELETE FROM user;")
+	isNil(t, err)
+	_, err = db.Exec("DELETE FROM repo;")
+	isNil(t, err)
+	_, err = db.Exec("DELETE FROM member;")
+	isNil(t, err)
+	_, err = db.Exec("DELETE FROM groups;")
+	isNil(t, err)
+	_, err = db.Exec("DELETE FROM certificate;")
+	isNil(t, err)
+	_, err = db.Exec("DELETE FROM access;")
+	isNil(t, err)
+
+	UpdateTable()
+	initialized = true
+
 }
 
 func TestDB(t *testing.T) {
+
 	initDB(t)
 	isNil(t, Close())
 	isNotNil(t, Init("sqlite3", "/invalid/test.db", false),
 			"should be unable to create database")
 	isNotNil(t, Init("invalid", "test.db", false),
 			"should be unable to open database")
+	os.Remove("test.db")
 	isNil(t, Init("sqlite3", "test.db", false))
+	isNil(t, Close())
+	initialized = false
 }
 
 func TestUpdateTable(t *testing.T) {
