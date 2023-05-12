@@ -2,6 +2,7 @@ package db
 
 import (
 	"testing"
+	"gemigit/test"
 )
 
 func TestCreateSession(t *testing.T) {
@@ -9,7 +10,7 @@ func TestCreateSession(t *testing.T) {
 	initDB(t)
 
 	user, signature := createUserAndSession(t)
-	isNotNil(t, user.CreateSession(signature),
+	test.IsNotNil(t, user.CreateSession(signature),
 			"should not be able to add the same signature")
 }
 
@@ -19,8 +20,8 @@ func TestDisconnect(t *testing.T) {
 
 	user, signature := createUserAndSession(t)
 
-	isNil(t, user.Disconnect(signature))
-	isNotNil(t, user.Disconnect(signature),
+	test.IsNil(t, user.Disconnect(signature))
+	test.IsNotNil(t, user.Disconnect(signature),
 			"should be already disconnected")
 }
 
@@ -31,20 +32,20 @@ func TestGetSessionsCount(t *testing.T) {
 	user, _ := createUserAndSession(t)
 
 	count, err := user.GetSessionsCount()
-	isNil(t, err)
-	isEqual(t, count, 1)
+	test.IsNil(t, err)
+	test.IsEqual(t, count, 1)
 
-	isNil(t, user.CreateSession("new_signature"))
+	test.IsNil(t, user.CreateSession("new_signature"))
 
 	count, err = user.GetSessionsCount()
-	isNil(t, err)
-	isEqual(t, count, 2)
+	test.IsNil(t, err)
+	test.IsEqual(t, count, 2)
 
 	user.ID = -1
 
 	count, err = user.GetSessionsCount()
-	isNil(t, err)
-	isEqual(t, count, 0)
+	test.IsNil(t, err)
+	test.IsEqual(t, count, 0)
 }
 
 func TestDisconnectAll(t *testing.T) {
@@ -52,8 +53,8 @@ func TestDisconnectAll(t *testing.T) {
 	initDB(t)
 
 	user, signature := createUserAndSession(t)
-	isNil(t, user.CreateSession(signature + "b"))
-	isNotNil(t, user.DisconnectAll(signature + "a"),
+	test.IsNil(t, user.CreateSession(signature + "b"))
+	test.IsNotNil(t, user.DisconnectAll(signature + "a"),
 			"should return invalid signature")
-	isNil(t, user.DisconnectAll(signature))
+	test.IsNil(t, user.DisconnectAll(signature))
 }

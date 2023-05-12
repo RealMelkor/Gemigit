@@ -3,6 +3,7 @@ package db
 import (
 	"testing"
 	"time"
+	"gemigit/test"
 )
 
 func TestCreateToken(t *testing.T) {
@@ -12,7 +13,7 @@ func TestCreateToken(t *testing.T) {
 	user, _ := createUserAndSession(t)
 
 	_, err := user.CreateToken()
-	isNil(t, err)
+	test.IsNil(t, err)
 }
 
 func TestRenewToken(t *testing.T) {
@@ -21,17 +22,17 @@ func TestRenewToken(t *testing.T) {
 
 	user, _ := createUserAndSession(t)
 
-	isNotNil(t, user.RenewToken(-1), "token id should be invalid")
+	test.IsNotNil(t, user.RenewToken(-1), "token id should be invalid")
 
 	_, err := user.CreateToken()
-	isNil(t, err)
+	test.IsNil(t, err)
 
 	tokens, err := user.GetTokens()
-	isNil(t, err)
+	test.IsNil(t, err)
 
-	isEqual(t, len(tokens), 1)
+	test.IsEqual(t, len(tokens), 1)
 
-	isNil(t, user.RenewToken(tokens[0].ID))
+	test.IsNil(t, user.RenewToken(tokens[0].ID))
 }
 
 func TestDeleteToken(t *testing.T) {
@@ -40,16 +41,16 @@ func TestDeleteToken(t *testing.T) {
 
 	user, _ := createUserAndSession(t)
 
-	isNotNil(t, user.DeleteToken(-1), "token id should be invalid")
+	test.IsNotNil(t, user.DeleteToken(-1), "token id should be invalid")
 
 	_, err := user.CreateToken()
-	isNil(t, err)
+	test.IsNil(t, err)
 
 	tokens, err := user.GetTokens()
-	isNil(t, err)
-	isEqual(t, len(tokens), 1)
+	test.IsNil(t, err)
+	test.IsEqual(t, len(tokens), 1)
 
-	isNil(t, user.DeleteToken(tokens[0].ID))
+	test.IsNil(t, user.DeleteToken(tokens[0].ID))
 }
 
 func TestGetTokens(t *testing.T) {
@@ -61,28 +62,28 @@ func TestGetTokens(t *testing.T) {
 	user.GetTokens()
 
 	tokens, err := user.GetTokens()
-	isNil(t, err)
-	isEqual(t, len(tokens), 0)
+	test.IsNil(t, err)
+	test.IsEqual(t, len(tokens), 0)
 
 	first, err := user.CreateToken()
-	isNil(t, err)
+	test.IsNil(t, err)
 
 	second, err := user.CreateToken()
-	isNil(t, err)
+	test.IsNil(t, err)
 
 	tokens, err = user.GetTokens()
-	isNil(t, err)
-	isEqual(t, len(tokens), 2)
+	test.IsNil(t, err)
+	test.IsEqual(t, len(tokens), 2)
 
-	isEqual(t, tokens[0].Hint, first[0:4])
-	isEqual(t, tokens[1].Hint, second[0:4])
+	test.IsEqual(t, tokens[0].Hint, first[0:4])
+	test.IsEqual(t, tokens[1].Hint, second[0:4])
 
-	isNil(t, user.DeleteToken(tokens[0].ID))
+	test.IsNil(t, user.DeleteToken(tokens[0].ID))
 
 	tokens, err = user.GetTokens()
-	isNil(t, err)
-	isEqual(t, len(tokens), 1)
-	isEqual(t, tokens[0].Hint, second[0:4])
+	test.IsNil(t, err)
+	test.IsEqual(t, len(tokens), 1)
+	test.IsEqual(t, tokens[0].Hint, second[0:4])
 }
 
 func TestCanUsePassword(t *testing.T) {
@@ -90,31 +91,31 @@ func TestCanUsePassword(t *testing.T) {
 	initDB(t)
 
 	_, err := CanUsePassword("invalid", "invalid", "invalid")
-	isNotNil(t, err, "should return user not found")
+	test.IsNotNil(t, err, "should return user not found")
 
 	user, signature := createUserAndSession(t)
-	repo := funcName(t)
+	repo := test.FuncName(t)
 
 	_, err = CanUsePassword("invalid", user.Name, user.Name)
-	isNotNil(t, err, "should return repository not found")
+	test.IsNotNil(t, err, "should return repository not found")
 
-	isNil(t, user.CreateRepo(repo, signature))
+	test.IsNil(t, user.CreateRepo(repo, signature))
 
 	b, err := CanUsePassword(repo, user.Name, user.Name)
-	isNil(t, err)
-	isEqual(t, b, true)
+	test.IsNil(t, err)
+	test.IsEqual(t, b, true)
 
-	isNil(t, user.ToggleSecure())
-
-	b, err = CanUsePassword(repo, user.Name, user.Name)
-	isNil(t, err)
-	isEqual(t, b, false)
-
-	isNil(t, user.ToggleSecure())
+	test.IsNil(t, user.ToggleSecure())
 
 	b, err = CanUsePassword(repo, user.Name, user.Name)
-	isNil(t, err)
-	isEqual(t, b, true)
+	test.IsNil(t, err)
+	test.IsEqual(t, b, false)
+
+	test.IsNil(t, user.ToggleSecure())
+
+	b, err = CanUsePassword(repo, user.Name, user.Name)
+	test.IsNil(t, err)
+	test.IsEqual(t, b, true)
 }
 
 func TestTokenAuth(t *testing.T) {
@@ -123,18 +124,20 @@ func TestTokenAuth(t *testing.T) {
 
 	user, _ := createUserAndSession(t)
 
-	isNotNil(t, TokenAuth(user.Name, "invalid"), "token should be invalid")
+	test.IsNotNil(t, TokenAuth(user.Name, "invalid"),
+			"token should be invalid")
 
 	token, err := user.CreateToken()
-	isNil(t, err)
-	isNil(t, TokenAuth(user.Name, token))
+	test.IsNil(t, err)
+	test.IsNil(t, TokenAuth(user.Name, token))
 
 	tokens, err := user.GetTokens()
-	isNil(t, err)
-	isEqual(t, len(tokens), 1)
+	test.IsNil(t, err)
+	test.IsEqual(t, len(tokens), 1)
 
 	_, err = db.Exec("UPDATE token SET expiration = ? WHERE tokenID = ?",
 			time.Now().Unix() - 1, tokens[0].ID)
-	isNil(t, err)
-	isNotNil(t, TokenAuth(user.Name, token), "token should be expired")
+	test.IsNil(t, err)
+	test.IsNotNil(t, TokenAuth(user.Name, token),
+			"token should be expired")
 }
