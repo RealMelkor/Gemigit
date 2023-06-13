@@ -1,4 +1,4 @@
-title: "Gemigit" # title on the main page
+title: "Gemigit 1.0 LTS" # title on the main page
 database:
   type: "sqlite" # supported : sqlite(doesn't require cgo), sqlite3, mysql
   url: "gemigit.db" # connection string or sqlite3 database path
