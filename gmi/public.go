@@ -15,13 +15,14 @@ func PublicFile(c gig.Context) error {
 }
 
 func PublicFileContent(c gig.Context) error {
-	content, err := repo.GetPublicFile(c.Param("repo"),
-					   c.Param("user"),
+	content, err := repo.GetPublicFile(c.Param("repo"), c.Param("user"),
 					   c.Param("blob"))
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.Gemini(showFileContent(content))
+	header := "=>/repo/" + c.Param("user") + "/" + c.Param("repo") +
+		"/files Go Back\n\n"
+	return c.Gemini(header + showFileContent(content))
 }
 
 func PublicRefs(c gig.Context) error {

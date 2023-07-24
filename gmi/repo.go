@@ -43,8 +43,7 @@ func serveFile(name string, user string, file string) ([]byte, string, error) {
 func RepoFiles(c gig.Context) error {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	query, err := c.QueryString()
 	if err != nil {
@@ -53,8 +52,7 @@ func RepoFiles(c gig.Context) error {
 	if query == "" {
 		return showRepo(c, pageFiles, true)
 	}
-	repofile, err := repo.GetFile(c.Param("repo"),
-				      user.Name, query)
+	repofile, err := repo.GetFile(c.Param("repo"), user.Name, query)
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
@@ -68,23 +66,21 @@ func RepoFiles(c gig.Context) error {
 func RepoFileContent(c gig.Context) error {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	content, err := repo.GetPrivateFile(c.Param("repo"), user.Name,
 					    c.Param("blob"), c.CertHash())
 	if err != nil {
-		return c.NoContent(gig.StatusBadRequest,
-				   err.Error())
+		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.Gemini(showFileContent(content))
+	header := "=>/account/repo/" + c.Param("repo") + "/files Go Back\n\n"
+	return c.Gemini(header + showFileContent(content))
 }
 
 func RepoFile(c gig.Context) error {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	data, mtype, err := serveFile(c.Param("repo"), user.Name, c.Param("*"))
 	if err != nil {
@@ -96,8 +92,7 @@ func RepoFile(c gig.Context) error {
 func TogglePublic(c gig.Context) error {
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	if err := user.TogglePublic(c.Param("repo"), c.CertHash());
 	   err != nil {
@@ -114,13 +109,11 @@ func ChangeRepoName(c gig.Context) error {
 				   "Invalid input received")
 	}
 	if newname == "" {
-		return c.NoContent(gig.StatusInput,
-				   "New repository name")
+		return c.NoContent(gig.StatusInput, "New repository name")
 	}
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	// should check if repo exist and if the new name is free
 	if err := repo.ChangeRepoDir(c.Param("repo"), user.Name, newname);
@@ -148,8 +141,7 @@ func ChangeRepoDesc(c gig.Context) error {
 	}
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
-		return c.NoContent(gig.StatusBadRequest,
-				   "Invalid username")
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	if err := user.ChangeRepoDesc(c.Param("repo"), newdesc);
 	   err != nil {
@@ -171,8 +163,7 @@ func DeleteRepo(c gig.Context) error {
 	}
 	if name != c.Param("repo") {
 		return c.NoContent(gig.StatusRedirectTemporary,
-				   "/account/repo/" +
-				   c.Param("repo"))
+				   "/account/repo/" + c.Param("repo"))
 	}
 	user, b := db.GetUser(c.CertHash())
 	if !b {
@@ -182,16 +173,13 @@ func DeleteRepo(c gig.Context) error {
 	// check if repo exist
 	if err := repo.RemoveRepo(name, user.Name);
 	   err != nil {
-		return c.NoContent(gig.StatusBadRequest,
-				   err.Error())
+		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	if err := user.DeleteRepo(name, c.CertHash());
 	   err != nil {
-		return c.NoContent(gig.StatusBadRequest,
-				   err.Error())
+		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account")
+	return c.NoContent(gig.StatusRedirectTemporary, "/account")
 }
 
 func RepoRefs(c gig.Context) error {
