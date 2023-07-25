@@ -8,6 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/go-ldap/ldap/v3 v3.4.4
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/gomarkdown/markdown v0.0.0-20230716120725-531d2d74bc12 // indirect
 	github.com/kkyr/fig v0.3.1
 	github.com/konsorten/go-windows-terminal-sequences v1.0.1 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16

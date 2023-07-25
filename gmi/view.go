@@ -397,6 +397,12 @@ func showRepoReadme(name string, author string) (string, error) {
 		content, err = showRepoFile(author, name, "README")
 	}
 	if err != nil {
+		content, err = showRepoFile(author, name, "README.md")
+		if err == nil {
+			content = fromMarkdownToGmi(content)
+		}
+	}
+	if err != nil {
 		return "", errors.New("No readme found")
 	}
 	return execTemplate("repo_readme.gmi", content)
@@ -461,6 +467,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		Repo: name,
 		Public: public,
 		HasReadme: hasFile(name, author, "README.gmi") ||
+			   hasFile(name, author, "README.md") ||
 			   hasFile(name, author, "README"),
 		HasLicense: hasFile(name, author, "LICENSE"),
 		Content: content,
