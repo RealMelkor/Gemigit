@@ -5,11 +5,14 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 )
 
-func parseMarkdown(node ast.Node) string {
+func parseMarkdown(node ast.Node, isListItem bool) string {
 	s := ""
 	for _, v := range node.GetChildren() {
 		if v.AsContainer() != nil {
-			s += parseMarkdown(v)
+			_, ok := v.(*ast.ListItem)
+			_, isList := v.(*ast.List)
+			s += parseMarkdown(v, ok || isListItem)
+			if isList { s += "\n" }
 		} else {
 			leaf := v.AsLeaf()
 			ptr := leaf.Literal
@@ -19,28 +22,29 @@ func parseMarkdown(node ast.Node) string {
 			if ptr == nil {
 				continue
 			}
-			i, ok := v.GetParent().(*ast.Image)
-			if ok {
+			if i, ok := v.GetParent().(*ast.Image); ok {
 				s += "=>" + string(i.Destination) + " "
 			}
-			l, ok := v.GetParent().(*ast.Link)
-			if ok {
+			if l, ok := v.GetParent().(*ast.Link); ok {
 				s += "=>" + string(l.Destination) + " "
 			}
-			_, ok = v.(*ast.Text)
-			if ok {
+			if _, ok := v.(*ast.Text); ok {
 				h, ok := v.GetParent().(*ast.Heading)
 				if ok {
 					for i := 0; i < h.Level; i++ {
 						s += "#"
 					}
 					s += " "
+				} else if isListItem {
+					s += "* "
 				}
 				if string(ptr) == "" { continue }
-				s += string(ptr) + "\n\n"
+				s += string(ptr) + "\n"
+				if !isListItem {
+					s += "\n"
+				}
 			}
-			_, ok = v.(*ast.CodeBlock)
-			if ok {
+			if _, ok := v.(*ast.CodeBlock); ok {
 				s += "```\n" + string(ptr) + "\n```\n"
 			}
 		}
@@ -52,5 +56,5 @@ func fromMarkdownToGmi(data string) string {
 	extensions := parser.CommonExtensions
 	p := parser.NewWithExtensions(extensions)
 	doc := p.Parse([]byte(data))
-	return parseMarkdown(doc)
+	return parseMarkdown(doc, false)
 }
