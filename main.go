@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"gemigit/access"
 	"gemigit/auth"
@@ -37,7 +37,7 @@ func main() {
 				return
 			}
 			fmt.Print("New Password : ")
-			password, err := terminal.ReadPassword(0)
+			password, err := term.ReadPassword(0)
 			fmt.Print("\n")
 			if err != nil {
 				log.Fatalln(err.Error())
@@ -67,7 +67,7 @@ func main() {
 				return
 			}
 			fmt.Print("Password : ")
-			password, err := terminal.ReadPassword(0)
+			password, err := term.ReadPassword(0)
 			fmt.Print("\n")
 			if err != nil {
 				log.Fatalln(err.Error())
