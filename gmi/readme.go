@@ -16,30 +16,30 @@ func parseMarkdown(node ast.Node, isListItem bool) string {
 		} else {
 			leaf := v.AsLeaf()
 			ptr := leaf.Literal
-			if ptr == nil {
-				ptr = leaf.Content
-			}
-			if ptr == nil {
-				continue
-			}
+			isLink := false
+			if ptr == nil { ptr = leaf.Content }
+			if ptr == nil { continue }
 			if i, ok := v.GetParent().(*ast.Image); ok {
 				s += "=>" + string(i.Destination) + " "
+				isLink = true
 			}
 			if l, ok := v.GetParent().(*ast.Link); ok {
 				s += "=>" + string(l.Destination) + " "
+				isLink = true
 			}
 			if _, ok := v.(*ast.Text); ok {
+				if string(ptr) == "" { continue }
 				h, ok := v.GetParent().(*ast.Heading)
 				if ok {
 					for i := 0; i < h.Level; i++ {
 						s += "#"
 					}
 					s += " "
-				} else if isListItem {
+				} else if isListItem && !isLink {
 					s += "* "
 				}
-				if string(ptr) == "" { continue }
-				s += string(ptr) + "\n"
+				s += string(ptr)
+				s += "\n"
 				if !isListItem {
 					s += "\n"
 				}
