@@ -45,19 +45,20 @@ type Member struct {
 }
 
 type Access struct {
-	RepoID int
-	GroupID int
-	UserID	int
-	Name	string
-	Privilege int
+	RepoID		int
+	GroupID		int
+	UserID		int
+	Name		string
+	Privilege	int
 }
 
 type Token struct {
-	Hint string
-	Expiration int64
-	ExpirationFormat string
-	UserID	int
-	ID int
+	Hint			string
+	Expiration		int64
+	ExpirationFormat	string
+	UserID			int
+	ID			int
+	ReadOnly		bool
 }
 
 var unixTime string
@@ -166,7 +167,8 @@ func createTable(db *sql.DB) error {
 		userID INTEGER NOT NULL,
 		token TEXT NOT NULL,
 		hint TEXT NOT NULL,
-		expiration INTEGER NOT NULL
+		expiration INTEGER NOT NULL,
+		readonly INTEGER DEFAULT 0 NOT NULL
 	);`
 
 	userConstraint := `CREATE UNIQUE INDEX username_upper ON user (
@@ -341,5 +343,8 @@ func UpdateTable() {
 	printOnSuccess("ALTER TABLE token ADD token TEXT NOT NULL;")
 	printOnSuccess("ALTER TABLE token ADD hint TEXT NOT NULL;")
 	printOnSuccess("ALTER TABLE token ADD expiration INTEGER NOT NULL;")
+	printOnSuccess("ALTER TABLE token ADD readonly " +
+			"INTEGER DEFAULT 0;")
+	printOnSuccess(`UPDATE token SET readonly=0 WHERE readonly IS NULL;`)
 
 }

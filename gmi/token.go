@@ -9,14 +9,14 @@ import (
 	"github.com/pitr/gig"
 )
 
-func CreateToken(c gig.Context) error {
+func CreateToken(c gig.Context, readOnly bool) error {
 
 	user, exist := db.GetUser(c.CertHash())
 	if !exist {
 		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 
-	token, err := user.CreateToken()
+	token, err := user.CreateToken(readOnly)
 	if err != nil {
 		log.Println(err)
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
@@ -27,6 +27,14 @@ func CreateToken(c gig.Context) error {
 		Token: token,
 	}
 	return execT(c, "token_new.gmi", data)
+}
+
+func CreateWriteToken(c gig.Context) error {
+	return CreateToken(c, false)
+}
+
+func CreateReadToken(c gig.Context) error {
+	return CreateToken(c, true)
 }
 
 func ListTokens(c gig.Context) error {

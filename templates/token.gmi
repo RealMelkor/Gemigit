@@ -9,9 +9,10 @@
 # Tokens
 
 =>/account/token/new Create new token
+=>/account/token/new_ro Create new read-only token
 
 {{ range .Tokens -}}
-* {{ .Hint }}... expires on {{ .ExpirationFormat }}
+* {{ .Hint }}... expires on {{ .ExpirationFormat }} {{if .ReadOnly}}[Read Only]{{end}}
 =>/account/token/delete/{{.ID}} Delete
 =>/account/token/renew/{{.ID}} Renew
 

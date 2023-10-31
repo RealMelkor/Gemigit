@@ -44,7 +44,7 @@ func CanUsePassword(repo string, owner string, username string) (bool, error) {
 	return secure == 0, nil
 }
 
-func (user User) CreateToken() (string, error) {
+func (user User) CreateToken(readOnly bool) (string, error) {
 	data := make([]byte, 32)
 	if _, err := rand.Read(data); err != nil {
 		return "", err
@@ -52,10 +52,11 @@ func (user User) CreateToken() (string, error) {
 	token := base64.RawStdEncoding.EncodeToString(data)
 	sum := sha256.Sum224(data)
 	hash := base64.RawStdEncoding.EncodeToString(sum[:])
-	_, err := db.Exec(`INSERT INTO token(userID, token, hint, expiration)
-				VALUES(?, ?, ?, ?);`,
-				user.ID, hash, token[0:4],
-				time.Now().Unix() + 3600 * 24 * 30)
+	_, err := db.Exec(`INSERT INTO
+		token(userID, token, hint, expiration, readonly)
+		VALUES(?, ?, ?, ?, ?);`,
+		user.ID, hash, token[0:4], time.Now().Unix() + 3600 * 24 * 30,
+		readOnly)
 	if err != nil {
 		return "", err
 	}
@@ -82,8 +83,9 @@ func (user User) RenewToken(tokenID int) (error) {
 }
 
 func (user User) DeleteToken(tokenID int) (error) {
-	row, err := db.Exec(`DELETE FROM token WHERE tokenID = ? AND userID = ?`,
-				tokenID, user.ID)
+	row, err := db.Exec(
+		`DELETE FROM token WHERE tokenID = ? AND userID = ?`,
+		tokenID, user.ID)
 	if err != nil {
 		return err
 	}
@@ -98,8 +100,8 @@ func (user User) DeleteToken(tokenID int) (error) {
 }
 
 func (user User) GetTokens() ([]Token, error) {
-	rows, err := db.Query(`SELECT tokenID, expiration, hint FROM token
-				WHERE userID = ?`, user.ID)
+	rows, err := db.Query(`SELECT tokenID, expiration, hint, readonly
+				FROM token WHERE userID = ?`, user.ID)
 	if err != nil {
 		log.Println(err)
 		return nil, errors.New("unexpected error")
@@ -109,7 +111,7 @@ func (user User) GetTokens() ([]Token, error) {
 	tokens := []Token{}
 	for rows.Next() {
 		var r Token
-		err = rows.Scan(&r.ID, &r.Expiration, &r.Hint)
+		err = rows.Scan(&r.ID, &r.Expiration, &r.Hint, &r.ReadOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +135,7 @@ func (user *User) ToggleSecure() error {
 	return nil
 }
 
-func TokenAuth(username string, token string) error {
+func TokenAuth(username string, token string, wantWrite bool) error {
 	decoded, err := base64.RawStdEncoding.DecodeString(token)
 	if err != nil {
 		log.Println(err)
@@ -141,7 +143,7 @@ func TokenAuth(username string, token string) error {
 	}
 	sum := sha256.Sum224(decoded)
 	hash := base64.RawStdEncoding.EncodeToString(sum[:])
-	row, err := db.Query(`SELECT b.expiration FROM user a
+	row, err := db.Query(`SELECT b.expiration, b.readonly FROM user a
 				INNER JOIN token b ON a.userID = b.UserID WHERE
 				UPPER(a.name) LIKE UPPER(?) AND
 				UPPER(b.token) LIKE UPPER(?)`,
@@ -155,9 +157,15 @@ func TokenAuth(username string, token string) error {
 		return errors.New("invalid token")
 	}
 	var expiration int64
-	row.Scan(&expiration)
+	var readonly bool
+	row.Scan(&expiration, &readonly)
 	if expiration <= time.Now().Unix() {
 		return errors.New("token expired")
+	}
+	if wantWrite {
+		if readonly {
+			return errors.New("the token only has read access")
+		}
 	}
 	return nil
 }

@@ -30,8 +30,8 @@ func Init() error {
 }
 
 // return nil if credential are valid, an error if not
-func Login(name string, password string,
-		allowToken bool, allowPassword bool) (error) {
+func Login(name string, password string, allowToken bool,
+		allowPassword bool, wantWrite bool) error {
 	if !allowToken && !allowPassword {
 		return errors.New("no authentication")
 	}
@@ -39,7 +39,7 @@ func Login(name string, password string,
 		return errors.New("empty field")
 	}
 	if allowToken {
-		err := db.TokenAuth(name, password)
+		err := db.TokenAuth(name, password, wantWrite)
 		if err == nil || !allowPassword {
 			return err
 		}

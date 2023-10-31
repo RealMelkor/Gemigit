@@ -231,7 +231,8 @@ func main() {
 	secure.Handle("/otp/rm", gmi.RemoveTOTP)
 	// token
 	secure.Handle("/token", gmi.ListTokens)
-	secure.Handle("/token/new", gmi.CreateToken)
+	secure.Handle("/token/new", gmi.CreateWriteToken)
+	secure.Handle("/token/new_ro", gmi.CreateReadToken)
 	secure.Handle("/token/secure", gmi.ToggleTokenAuth)
 	secure.Handle("/token/renew/:token", gmi.RenewToken)
 	secure.Handle("/token/delete/:token", gmi.DeleteToken)
