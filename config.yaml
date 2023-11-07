@@ -9,7 +9,7 @@ gemini:
   address: "0.0.0.0" # address to listen on
   port: 1965 # bind port for gemini request
   templates: "./templates/" # templates directory
-  #static: "./static" # serve a static directory (optional)
+  staticDirectory: "./static" # serve a static directory (optional)
 
 git:
   https: false # show https instead of http in the repository pages
@@ -21,6 +21,7 @@ git:
   address: "0.0.0.0" # address to listen on, disabled if remote is enabled
   port: 5555 # bind port for http git request, disabled if remote is enabled
   public: true # allow non-registered users to see public repositories
+  maximumCommits: 100 # maximum number of commits shown on log pages
   #key: "CHANGEME" # master key having read/write access on all repositories
 
 ldap:

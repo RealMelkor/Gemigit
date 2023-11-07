@@ -278,8 +278,8 @@ func hasFile(name string, author string, file string) bool {
 }
 
 type commit struct {
-	Message string
-	Info string
+	Message	string
+	Info	string
 }
 
 type file struct {
@@ -302,13 +302,19 @@ func showRepoLogs(name string, author string) (string, error) {
 		return "", errors.New("Corrupted repository")
 	}
 	commits := []commit{}
-	err = ret.ForEach(func(c *object.Commit) error {
+	maximum := config.Cfg.Git.MaximumCommits
+	for i := 0; maximum == 0 || i < maximum; i++ {
+		c, err := ret.Next()
+		if err != nil {
+			if err.Error() == "EOF" { break }
+			log.Println(err.Error())
+			return "", err
+		}
 		info := c.Hash.String() + ", by " + c.Author.Name + " on " +
 			c.Author.When.Format("2006-01-02 15:04:05")
 		commits = append(commits, commit{Info: info,
 						 Message: c.Message})
-		return nil
-	})
+	}
 	return execTemplate("repo_log.gmi", commits)
 }
 
