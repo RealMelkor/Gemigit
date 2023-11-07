@@ -16,6 +16,7 @@ type Config struct {
 		Address		string `validate:"required"`
 		Port		string `validate:"required"`
 		Templates	string `validate:"required"`
+		StaticDirectory	string
 	}
 	Git struct {
 		Https	bool

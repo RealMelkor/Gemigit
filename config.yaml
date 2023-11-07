@@ -9,6 +9,7 @@ gemini:
   address: "0.0.0.0" # address to listen on
   port: 1965 # bind port for gemini request
   templates: "./templates/" # templates directory
+  #static: "./static" # serve a static directory (optional)
 
 git:
   https: false # show https instead of http in the repository pages

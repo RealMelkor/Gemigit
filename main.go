@@ -165,7 +165,10 @@ func main() {
 					 "Latency=${latency}\n"
 	g := gig.Default()
 	g.Use(gig.Recover())
-	g.Static("/static", "./static")
+	g.File("/robots.txt", config.Cfg.Gemini.Templates + "/robots.txt")
+	if config.Cfg.Gemini.StaticDirectory != "" {
+		g.Static("/static", config.Cfg.Gemini.StaticDirectory)
+	}
 
 	passAuth := gig.PassAuth(
 		func(sig string, c gig.Context) (string, error) {
