@@ -13,7 +13,7 @@ gemini:
 
 git:
   http:
-    enabled: true # serve git repositories using http
+    enabled: false # serve git repositories using http
     https: false # show https instead of http in the repository pages
     domain: "localhost:5555" # domain displayed for the http git server
     address: "0.0.0.0" # address to listen on

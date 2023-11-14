@@ -441,6 +441,9 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		return c.NoContent(gig.StatusTemporaryFailure,
 				   "Repository not found")
 	}
+	if public && config.Cfg.Git.Public {
+		loggedAs = "anon@"
+	}
 
 	content := ""
 	switch page {
