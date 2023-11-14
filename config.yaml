@@ -12,14 +12,22 @@ gemini:
   staticDirectory: "./static" # serve a static directory (optional)
 
 git:
-  https: false # show https instead of http in the repository pages
-  domain: "localhost" # domain for the http git request
+  http:
+    enabled: true # serve git repositories using http
+    https: false # show https instead of http in the repository pages
+    domain: "localhost:5555" # domain displayed for the http git server
+    address: "0.0.0.0" # address to listen on
+    port: 5555 # bind port for http git request
+  ssh:
+    enabled: true # serve git repositories using ssh
+    domain: "localhost:2222" # domain displayed for the ssh git server
+    address: "0.0.0.0" # address to listen on
+    port: 2222 # bind port for http git request
   remote:
     enabled: false # read from a remote git server
     address: "https://git.example.com" # address to fetch repositories from
     key: "CHANGEME" # master key to send to the remote server
-  address: "0.0.0.0" # address to listen on, disabled if remote is enabled
-  port: 5555 # bind port for http git request, disabled if remote is enabled
+  path: "./repos" # path to repositories directory
   public: true # allow non-registered users to see public repositories
   maximumCommits: 100 # maximum number of commits shown on log pages
   #key: "CHANGEME" # master key having read/write access on all repositories

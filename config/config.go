@@ -19,16 +19,26 @@ type Config struct {
 		StaticDirectory	string
 	}
 	Git struct {
-		Https		bool
-		Domain		string	`validate:"required"`
+		Http struct {
+			Enabled		bool
+			Https		bool
+			Domain		string	`validate:"required"`
+			Address 	string  `validate:"required"`
+			Port		int	`validate:"required"`
+		}
+		SSH struct {
+			Enabled		bool
+			Domain		string	`validate:"required"`
+			Address 	string  `validate:"required"`
+			Port		int	`validate:"required"`
+		}
 		Remote struct {
 			Enabled bool
 			Url	string
 			Address string
 			Key	string
 		}
-		Address 	string  `validate:"required"`
-		Port		int	`validate:"required"`
+		Path		string	`validate:"required"`
 		Key		string
 		Public		bool
 		MaximumCommits	int

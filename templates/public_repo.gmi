@@ -5,7 +5,14 @@
 {{if .Description -}}
 > {{ .Description }}
 {{end -}}
-> git clone {{ .Protocol }}://{{ .Domain }}/{{ .User }}/{{ .Repo }}
+{{- if .HasHTTP -}}
+> git clone {{ .HttpProtocol }}://{{ .HttpDomain }}/{{ .User }}/{{ .Repo }}
+{{- end -}}
+{{- if and .HasHTTP .HasSSH }}
+{{ end -}}
+{{- if .HasSSH -}}
+> git clone ssh://{{ .SshDomain }}/{{ .User }}/{{ .Repo }}
+{{- end }}
 
 =>/repo/{{.User}}/{{.Repo}} Log
 =>/repo/{{.User}}/{{.Repo}}/files Files

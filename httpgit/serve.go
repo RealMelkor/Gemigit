@@ -104,7 +104,7 @@ func basicAuth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		/* check if it is allowed to use password instead of token*/
+		/* check if it is allowed to use password instead of token */
 		pass, err := db.CanUsePassword(repo, owner, username)
 		if err != nil {
 			log.Println(err.Error())

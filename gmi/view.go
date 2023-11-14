@@ -427,7 +427,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 				   "Repository not found")
 	}
 	protocol := "http"
-	if config.Cfg.Git.Https {
+	if config.Cfg.Git.Http.Https {
 		protocol = "https"
 	}
 	public, err := db.IsRepoPublic(name, author)
@@ -456,8 +456,11 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 	}
 
 	data := struct {
-		Protocol string
-		Domain string
+		HasHTTP bool
+		HttpProtocol string
+		HttpDomain string
+		HasSSH bool
+		SshDomain string
 		User string
 		Description string
 		Repo string
@@ -466,8 +469,11 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		HasLicense bool
 		Content string
 	}{
-		Protocol: protocol,
-		Domain: config.Cfg.Git.Domain,
+		HasHTTP: config.Cfg.Git.Http.Enabled,
+		HttpProtocol: protocol,
+		HttpDomain: config.Cfg.Git.Http.Domain,
+		HasSSH: config.Cfg.Git.SSH.Enabled,
+		SshDomain: config.Cfg.Git.SSH.Domain,
 		User: author,
 		Description: desc,
 		Repo: name,

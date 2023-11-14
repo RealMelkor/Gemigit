@@ -12,6 +12,7 @@ import (
 	"gemigit/config"
 	"gemigit/db"
 	"gemigit/httpgit"
+	"gemigit/sshgit"
 	"gemigit/repo"
 	"gemigit/gmi"
 
@@ -154,9 +155,16 @@ func main() {
 	}
 
 	if !config.Cfg.Git.Remote.Enabled {
-		go httpgit.Listen("repos/",
-				  config.Cfg.Git.Address,
-				  config.Cfg.Git.Port)
+		if config.Cfg.Git.Http.Enabled {
+			go httpgit.Listen(config.Cfg.Git.Path,
+				config.Cfg.Git.Http.Address,
+				config.Cfg.Git.Http.Port)
+		}
+		if config.Cfg.Git.SSH.Enabled {
+			go sshgit.Listen(config.Cfg.Git.Path,
+				config.Cfg.Git.SSH.Address,
+				config.Cfg.Git.SSH.Port)
+		}
 	}
 	go auth.Decrease()
 
