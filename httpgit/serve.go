@@ -100,7 +100,7 @@ func basicAuth(next http.Handler) http.Handler {
 		   The root authentication is necessary to run instance in
 		   stateless mode. */
 		if config.Cfg.Git.Key != "" && username == "root#" &&
-		   password == config.Cfg.Git.Key {
+				password == config.Cfg.Git.Key {
 			next.ServeHTTP(w, r)
 			return
 		}

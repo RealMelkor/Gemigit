@@ -49,13 +49,18 @@ func handle(s ssh.Session) {
 	password := s.Context().Value("password").(string)
 	readOnly := readCommand
 
-	b, err := db.IsRepoPublic(repo, owner)
-	if err != nil {
-		s.Stderr().Write(notFound)
-		log.Println(err.Error())
-		return
+	public := false
+	if config.Cfg.Git.Public {
+		var err error
+		public, err = db.IsRepoPublic(repo, owner)
+		if err != nil {
+			s.Stderr().Write(notFound)
+			log.Println(err.Error())
+			return
+		}
 	}
-	if !b || !readOnly {
+
+	if !public || !readOnly {
 		pass, err := db.CanUsePassword(repo, owner, username)
 		if err != nil {
 			log.Println(err.Error())
@@ -109,17 +114,17 @@ func Listen(path string, address string, port int) {
 		})
 	data, err := os.ReadFile(config.Cfg.Gemini.Key)
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 		return
 	}
 	key, err := gossh.ParsePrivateKey(data)
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 		return
 	}
 	server.AddHostKey(key)
 	log.Println("SSH server started on port", config.Cfg.Git.SSH.Port)
 	if err := server.ListenAndServe(); err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 }
