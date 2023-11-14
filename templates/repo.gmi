@@ -10,7 +10,7 @@
 {{- if and .HasHTTP .HasSSH }}
 {{ end -}}
 {{- if .HasSSH -}}
-> git clone ssh://{{ .SshDomain }}/{{ .User }}/{{ .Repo }}
+> git clone ssh://{{.LoggedAs}}{{ .SshDomain }}/{{ .User }}/{{ .Repo }}
 {{- end }}
 
 =>/account/repo/{{.Repo}}/access Collaborators

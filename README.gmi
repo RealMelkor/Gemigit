@@ -6,7 +6,7 @@ A self-hosted gemini Git service
 
 * Allow users to create and manage git repositories
 * Private and public repositories
-* Serving git repositories on the http protocol
+* Serving git repositories on the http and ssh protocols
 * LDAP authentication
 * 2FA with time-based one-time passwords
 * Option to use token authentication when doing git operations

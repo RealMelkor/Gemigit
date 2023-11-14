@@ -22,7 +22,7 @@ git:
     enabled: true # serve git repositories using ssh
     domain: "localhost:2222" # domain displayed for the ssh git server
     address: "0.0.0.0" # address to listen on
-    port: 2222 # bind port for http git request
+    port: 2222 # bind port for ssh git request
   remote:
     enabled: false # read from a remote git server
     address: "https://git.example.com" # address to fetch repositories from

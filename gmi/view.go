@@ -415,6 +415,11 @@ func showRepoReadme(name string, author string) (string, error) {
 }
 
 func showRepo(c gig.Context, page int, owner bool) (error) {
+	loggedAs := ""
+	user, exist := db.GetUser(c.CertHash())
+	if exist {
+		loggedAs = user.Name + "@"
+	}
 	author, name, err := getRepo(c, owner)
 	if err != nil {
 		log.Println(err.Error())
@@ -461,6 +466,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		HttpDomain string
 		HasSSH bool
 		SshDomain string
+		LoggedAs string
 		User string
 		Description string
 		Repo string
@@ -474,6 +480,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		HttpDomain: config.Cfg.Git.Http.Domain,
 		HasSSH: config.Cfg.Git.SSH.Enabled,
 		SshDomain: config.Cfg.Git.SSH.Domain,
+		LoggedAs: loggedAs,
 		User: author,
 		Description: desc,
 		Repo: name,
