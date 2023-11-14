@@ -11,7 +11,7 @@
 {{- if and .HasHTTP .HasSSH }}
 {{ end -}}
 {{- if .HasSSH -}}
-> git clone ssh://{{.LoggedAs}}{{ .SshDomain }}/{{ .User }}/{{ .Repo }}
+> git clone ssh://anon@{{ .SshDomain }}/{{ .User }}/{{ .Repo }}
 {{- end }}
 
 =>/repo/{{.User}}/{{.Repo}} Log

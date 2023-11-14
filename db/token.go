@@ -139,7 +139,7 @@ func TokenAuth(username string, token string, wantWrite bool) error {
 	decoded, err := base64.RawStdEncoding.DecodeString(token)
 	if err != nil {
 		log.Println(err)
-		return errors.New("unexpected error")
+		return errors.New("invalid token")
 	}
 	sum := sha256.Sum224(decoded)
 	hash := base64.RawStdEncoding.EncodeToString(sum[:])

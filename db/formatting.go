@@ -56,6 +56,9 @@ func isNameValid(name string) error {
 }
 
 func isUsernameValid(name string) error {
+	if name == "anon" || name == "root" {
+		return errors.New("blacklisted username")
+	}
 	if err := isNameValid(name); err != nil {
 		return err
 	}

@@ -104,6 +104,21 @@ func handle(s ssh.Session) {
 func Listen(path string, address string, port int) {
 	var server ssh.Server
 	server.Handle(handle)
+	server.KeyboardInteractiveHandler = func(ctx ssh.Context,
+			challenge gossh.KeyboardInteractiveChallenge) bool {
+		if ctx.User() == "anon" {
+			ctx.SetValue("password", "")
+			return true
+		}
+		answers, err := challenge("", "",
+				[]string{"password:"}, []bool{false})
+		if err != nil {
+			log.Println(err)
+			return false
+		}
+		ctx.SetValue("password", answers[0])
+		return true
+	}
 
 	server.Addr = config.Cfg.Git.SSH.Address + ":" +
 		strconv.Itoa(config.Cfg.Git.SSH.Port)
