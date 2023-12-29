@@ -1,0 +1,13 @@
+[Unit]
+Description=Gemigit
+After=network.target
+
+[Service]
+StandardOutput=journal
+WorkingDirectory=/var/lib/gemigit
+ExecStart=/usr/bin/gemigit
+User=gemigit
+Group=gemigit
+
+[Install]
+WantedBy=multi-user.target

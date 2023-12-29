@@ -1,6 +1,6 @@
 # Gemigit
 
-A self-hosted gemini Git service
+A software forge for the [gemini protocol][0]
 
 ## Features
 
@@ -20,20 +20,24 @@ A self-hosted gemini Git service
 
 * go (at compile-time)
 * git (at run-time)
+* openssl (to create certificate)
 
 ### Fedora, RedHat
 ```
-dnf install git golang
+dnf install git golang openssl
 ```
 
 ### Debian, Ubuntu
 ```
-apt install git golang
+apt install git golang openssl
 ```
 
 ## Setup
 
-* Build the program using the command "go build"
+* Build the program with the following command :
+```
+go build
+```
 * Copy config.yaml into either /etc/gemigit, /usr/local/etc/gemigit or the working directory where Gemigit will be executed
 * Create a new certificate with the following command, you can change localhost to the domain name you want to use : 
 ```
@@ -42,12 +46,28 @@ openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3
 * Edit the configuration file as you want
 * Execute gemigit
 
+On Linux, Gemigit can be run as a systemd service :
+```
+cp service/gemigit.service /etc/systemd/system/
+go build
+cp gemigit /usr/bin/gemigit
+mkdir /etc/gemigit
+cp config.yaml /etc/gemigit/
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes -subj '/CN=localhost'
+cp *.pem /var/lib/gemigit/
+cp -r ./templates /var/lib/gemigit/
+adduser -d /var/lib/gemigit -m -U gemigit
+chown -R gemigit:gemigit /var/lib/gemigit
+systemctl enable --now gemigit
+```
+
 ## Demo
 
-You can try a public instance of Gemigit at this address gemini://gemini.rmf-dev.com using a Gemini client or with a [gemini web proxy][0].
+You can try a public instance of Gemigit at this address gemini://gemini.rmf-dev.com using a Gemini client or with a [gemini web proxy][1].
 
 ## Contact
 
 For inquiries about this software or the instance running at gemini://gemini.rmf-dev.com, you can contact the main maintainer of this project at : rawmonk@firemail.cc
 
-[0]: https://portal.mozz.us/gemini/gemini.rmf-dev.com/
+[0]: https://geminiprotocol.net/
+[1]: https://portal.mozz.us/gemini/gemini.rmf-dev.com/
