@@ -48,6 +48,7 @@ openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3
 
 On Linux, Gemigit can be run as a systemd service :
 ```
+adduser -d /var/lib/gemigit -m -U gemigit
 cp service/gemigit.service /etc/systemd/system/
 go build
 cp gemigit /usr/bin/gemigit
@@ -56,7 +57,6 @@ cp config.yaml /etc/gemigit/
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes -subj '/CN=localhost'
 cp *.pem /var/lib/gemigit/
 cp -r ./templates /var/lib/gemigit/
-adduser -d /var/lib/gemigit -m -U gemigit
 chown -R gemigit:gemigit /var/lib/gemigit
 systemctl enable --now gemigit
 ```
