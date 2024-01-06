@@ -2,8 +2,16 @@ package gmi
 
 import (
 	"gemigit/db"
+	"gemigit/csrf"
+
 	"github.com/pitr/gig"
 )
+
+func accessRedirect(c gig.Context) error {
+	return c.NoContent(gig.StatusRedirectTemporary,
+		"/account/" + csrf.Token(c.CertHash()) + "/repo/" +
+		c.Param("repo") + "/access")
+}
 
 func privilegeUpdate(privilege int, first bool) int {
 	if first {
@@ -78,8 +86,7 @@ func groupAccessOption(c gig.Context, first bool) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/repo/" + c.Param("repo") + "/access")
+	return accessRedirect(c)
 }
 
 func GroupAccessFirstOption(c gig.Context) error {
@@ -118,8 +125,7 @@ func userAccessOption(c gig.Context, first bool) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/repo/" + c.Param("repo") + "/access")
+	return accessRedirect(c)
 }
 
 func UserAccessFirstOption(c gig.Context) error {
@@ -165,8 +171,7 @@ func AddUserAccess(c gig.Context) error {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Invalid user")
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/repo/" + repo.Name + "/access")
+	return accessRedirect(c)
 }
 
 func AddGroupAccess(c gig.Context) error {
@@ -179,8 +184,7 @@ func AddGroupAccess(c gig.Context) error {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Invalid user")
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/repo/" + repo.Name + "/access")
+	return accessRedirect(c)
 }
 
 func RemoveUserAccess(c gig.Context) error {
@@ -199,8 +203,7 @@ func RemoveUserAccess(c gig.Context) error {
                 return c.NoContent(gig.StatusBadRequest,
                                    "User doesn't have access")
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/repo/" + repo.Name + "/access")
+	return accessRedirect(c)
 }
 
 func RemoveGroupAccess(c gig.Context) error {
@@ -219,6 +222,5 @@ func RemoveGroupAccess(c gig.Context) error {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Group doesn't have access")
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/repo/" + repo.Name + "/access")
+	return accessRedirect(c)
 }

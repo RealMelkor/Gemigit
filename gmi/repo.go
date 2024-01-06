@@ -13,7 +13,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 )
 
-func accRedirect(c gig.Context, after string) error {
+func accountRedirect(c gig.Context, after string) error {
 	return c.NoContent(gig.StatusRedirectTemporary,
 		"/account/" + csrf.Token(c.CertHash()) + "/" + after)
 }
@@ -104,7 +104,7 @@ func TogglePublic(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "repo/" + c.Param("repo"))
+	return accountRedirect(c, "repo/" + c.Param("repo"))
 }
 
 func ChangeRepoName(c gig.Context) error {
@@ -130,7 +130,7 @@ func ChangeRepoName(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "repo/" + newname)
+	return accountRedirect(c, "repo/" + newname)
 }
 
 func ChangeRepoDesc(c gig.Context) error {
@@ -151,7 +151,7 @@ func ChangeRepoDesc(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "repo/" + c.Param("repo"))
+	return accountRedirect(c, "repo/" + c.Param("repo"))
 }
 
 func DeleteRepo(c gig.Context) error {
@@ -165,7 +165,7 @@ func DeleteRepo(c gig.Context) error {
 				"To confirm type the repository name")
 	}
 	if name != c.Param("repo") {
-		return accRedirect(c, "repo/" + c.Param("repo"))
+		return accountRedirect(c, "repo/" + c.Param("repo"))
 	}
 	user, b := db.GetUser(c.CertHash())
 	if !b {
@@ -181,7 +181,7 @@ func DeleteRepo(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "")
+	return accountRedirect(c, "")
 }
 
 func RepoRefs(c gig.Context) error {

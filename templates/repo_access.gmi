@@ -1,4 +1,4 @@
-=>{{.Repo}} Go back
+=>. Go back
 
 # {{ .Repo }}
 

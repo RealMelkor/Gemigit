@@ -25,7 +25,7 @@ func ChangeDesc(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "")
+	return accountRedirect(c, "")
 }
 
 func AddRepo(c gig.Context) error {
@@ -50,7 +50,7 @@ func AddRepo(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest,
 				   err.Error())
 	}
-	return accRedirect(c, "repo/" + name)
+	return accountRedirect(c, "repo/" + name)
 }
 
 func AddGroup(c gig.Context) error {
@@ -71,7 +71,7 @@ func AddGroup(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest,
 				   err.Error())
 	}
-	return accRedirect(c, "groups/" + name)
+	return accountRedirect(c, "groups/" + name)
 }
 
 func ChangePassword(c gig.Context) error {
@@ -92,7 +92,7 @@ func ChangePassword(c gig.Context) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "")
+	return accountRedirect(c, "")
 }
 
 func Disconnect(c gig.Context) error {
@@ -114,5 +114,5 @@ func DisconnectAll(c gig.Context) error {
 	if err := user.DisconnectAll(c.CertHash()); err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accRedirect(c, "")
+	return accountRedirect(c, "")
 }
