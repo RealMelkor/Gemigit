@@ -224,6 +224,11 @@ func main() {
 
 	// repository view
 	secure.Handle("repo/:repo", gmi.RepoLog)
+	secure.Handle("repo/:repo/", func(c gig.Context) error {
+		return c.NoContent(gig.StatusRedirectTemporary,
+			"/account/" + c.Param("csrf") +
+			"/repo/" + c.Param("repo"))
+	})
 	secure.Handle("repo/:repo/license", gmi.RepoLicense)
 	secure.Handle("repo/:repo/readme", gmi.RepoReadme)
 	secure.Handle("repo/:repo/refs", gmi.RepoRefs)
