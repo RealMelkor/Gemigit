@@ -1,18 +1,18 @@
-=>/account/repo/{{.Repo}} Go back
+=>{{.Repo}} Go back
 
 # {{ .Repo }}
 
-=>/account/repo/{{.Repo}}/access/add Add user
-=>/account/repo/{{.Repo}}/access/addg Add group
+=>access/add Add user
+=>access/addg Add group
 
 ## Collaborators
 
 {{ range .Collaborators -}}
 * {{ .Name }} - Privilege : {{.Privilege | AccessPrivilege}}
 {{if $.Owner -}}
-=>/account/repo/{{$.Repo}}/access/{{.Name}}/first {{.Privilege | AccessFirst}}
-=>/account/repo/{{$.Repo}}/access/{{.Name}}/second {{.Privilege | AccessSecond}}
-=>/account/repo/{{$.Repo}}/access/{{.Name}}/kick Remove
+=>access/{{.Name}}/first {{.Privilege | AccessFirst}}
+=>access/{{.Name}}/second {{.Privilege | AccessSecond}}
+=>access/{{.Name}}/kick Remove
 
 {{end -}}
 {{end -}}
@@ -22,9 +22,9 @@
 {{ range .Groups -}}
 * {{ .Name }} - Privilege : {{.Privilege | AccessPrivilege}}
 {{if $.Owner -}}
-=>/account/repo/{{$.Repo}}/access/{{.Name}}/g/first {{.Privilege | AccessFirst}}
-=>/account/repo/{{$.Repo}}/access/{{.Name}}/g/second {{.Privilege | AccessSecond}}
-=>/account/repo/{{$.Repo}}/access/{{.Name}}/g/kick Remove
+=>access/{{.Name}}/g/first {{.Privilege | AccessFirst}}
+=>access/{{.Name}}/g/second {{.Privilege | AccessSecond}}
+=>access/{{.Name}}/g/kick Remove
 
 {{end -}}
 {{end -}}

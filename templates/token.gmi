@@ -1,19 +1,19 @@
-=>/account Go back
+=>. Go back
 
 > Account status : {{if .Secure}}Secure{{else}}Insecure{{end}}
 
 # Settings
 
-=>/account/token/secure {{if .Secure}}Enable{{else}}Disable{{end}} password authentication for git operations {{if .Secure}}[Not recommended]{{else}}[Recommended]{{end}}
+=>token/secure {{if .Secure}}Enable{{else}}Disable{{end}} password authentication for git operations {{if .Secure}}[Not recommended]{{else}}[Recommended]{{end}}
 
 # Tokens
 
-=>/account/token/new Create new token
-=>/account/token/new_ro Create new read-only token
+=>token/new Create new token
+=>token/new_ro Create new read-only token
 
 {{ range .Tokens -}}
 * {{ .Hint }}... expires on {{ .ExpirationFormat }} {{if .ReadOnly}}[Read Only]{{end}}
-=>/account/token/delete/{{.ID}} Delete
-=>/account/token/renew/{{.ID}} Renew
+=>token/delete/{{.ID}} Delete
+=>token/renew/{{.ID}} Renew
 
 {{ end -}}

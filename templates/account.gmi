@@ -6,23 +6,23 @@
 
 {{end -}}
 
-=>/account/addrepo Create a new repository
-=>/account/addgroup Create a new user group
-=>/account/chdesc Change your account description
-=>/account/groups View the groups you are in
-=>/account/token View authentication tokens settings
-=>/account/otp View 2FA settings
-=>/account/chpasswd Change your password
-=>/account/disconnect Disconnect
+=>addrepo Create a new repository
+=>addgroup Create a new user group
+=>chdesc Change your account description
+=>groups View the groups you are in
+=>token View authentication tokens settings
+=>otp View 2FA settings
+=>chpasswd Change your password
+=>disconnect Disconnect
 {{if .Sessions -}}
-=>/account/disconnectall Disconnect other sessions [{{.Sessions}}]
+=>disconnectall Disconnect other sessions [{{.Sessions}}]
 {{- end}}
 
 ## Your repositories
 {{ range .Repositories -}} 
-=>/account/repo/{{.}} {{.}}
+=>repo/{{.}} {{.}}
 {{ end }}
 ## Repositories
 {{ range .RepositoriesAccess -}} 
-=>/repo/{{.Username}}/{{.Name}} {{.Name}} by {{.Username}}
+=>repo/{{.Username}}/{{.Name}} {{.Name}} by {{.Username}}
 {{ end -}}

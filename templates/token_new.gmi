@@ -1,4 +1,4 @@
-=>/account/token Go back
+=>. Go back
 
 # New token created
 

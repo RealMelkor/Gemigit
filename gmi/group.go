@@ -2,8 +2,20 @@ package gmi
 
 import (
 	"gemigit/db"
+	"gemigit/csrf"
+
 	"github.com/pitr/gig"
 )
+
+func groupRedirect(c gig.Context) error {
+	return c.NoContent(gig.StatusRedirectTemporary, "/account/" +
+		csrf.Token(c.CertHash()) + "/groups/" + c.Param("group"))
+}
+
+func groupsListRedirect(c gig.Context) error {
+	return c.NoContent(gig.StatusRedirectTemporary, "/account/" +
+			csrf.Token(c.CertHash()) + "/groups")
+}
 
 func isGroupOwner(c gig.Context) (int, error) {
 	user, exist := db.GetUser(c.CertHash())
@@ -44,8 +56,7 @@ func SetGroupDesc(c gig.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/groups/" + c.Param("group"))
+	return groupRedirect(c)
 }
 
 func DeleteGroup(c gig.Context) error {
@@ -59,8 +70,7 @@ func DeleteGroup(c gig.Context) error {
 				   "To confirm type the group name")
 	}
 	if name != c.Param("group") {
-		return c.NoContent(gig.StatusRedirectTemporary,
-				   "/account/groups/" + c.Param("group"))
+		return groupRedirect(c)
 	}
 	id, err := isGroupOwner(c)
 	if err != nil {
@@ -70,7 +80,7 @@ func DeleteGroup(c gig.Context) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups")
+	return groupsListRedirect(c)
 }
 
 func LeaveGroup(c gig.Context) (error) {
@@ -95,7 +105,7 @@ func LeaveGroup(c gig.Context) (error) {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups")
+	return groupsListRedirect(c)
 }
 
 func RmFromGroup(c gig.Context) (error) {
@@ -120,8 +130,7 @@ func RmFromGroup(c gig.Context) (error) {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/groups/" + c.Param("group"))
+	return groupRedirect(c)
 }
 
 func AddToGroup(c gig.Context) (error) {
@@ -138,7 +147,7 @@ func AddToGroup(c gig.Context) (error) {
                 return c.NoContent(gig.StatusBadRequest,
                                    "Invalid username")
         }
-	
+
 	group := c.Param("group")
 	owner, err := user.IsInGroup(group)
 	if err != nil {
@@ -151,6 +160,5 @@ func AddToGroup(c gig.Context) (error) {
 	if err = user.AddUserToGroup(group, query); err != nil {
                 return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary,
-			   "/account/groups/" + group)
+	return groupRedirect(c)
 }

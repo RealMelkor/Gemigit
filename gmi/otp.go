@@ -4,6 +4,7 @@ import (
 	"gemigit/auth"
 	"gemigit/config"
 	"gemigit/db"
+	"gemigit/csrf"
 
 	"github.com/pitr/gig"
 	"github.com/pquerna/otp/totp"
@@ -14,6 +15,11 @@ import (
 )
 
 var keys = make(map[string]string)
+
+func otpRedirect(c gig.Context) error {
+	return c.NoContent(gig.StatusRedirectTemporary,
+		"/account/" + csrf.Token(c.CertHash() + "/otp"))
+}
 
 func CreateTOTP(c gig.Context) error {
 
@@ -77,7 +83,7 @@ func ConfirmTOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
 	}
 
-	return c.NoContent(gig.StatusRedirectTemporary, "/account")
+	return otpRedirect(c)
 }
 
 func LoginOTP(c gig.Context) error {
@@ -98,7 +104,8 @@ func LoginOTP(c gig.Context) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(gig.StatusRedirectTemporary, "/account")
+
+	return otpRedirect(c)
 }
 
 func RemoveTOTP(c gig.Context) error {
@@ -128,7 +135,7 @@ func RemoveTOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
 	}
 
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/otp")
+	return otpRedirect(c)
 }
 
 func ShowOTP(c gig.Context) error {

@@ -15,6 +15,7 @@ import (
 	"gemigit/sshgit"
 	"gemigit/repo"
 	"gemigit/gmi"
+	"gemigit/csrf"
 
 	"github.com/pitr/gig"
 )
@@ -178,82 +179,80 @@ func main() {
 		g.Static("/static", config.Cfg.Gemini.StaticDirectory)
 	}
 
-	passAuth := gig.PassAuth(
-		func(sig string, c gig.Context) (string, error) {
-			_, b := db.GetUser(sig)
-			if !b {
-				return "/login", nil
-			}
-			return "", nil
-		})
+	g.Handle("/account", csrf.New)
+	g.Handle("/account/:csrf", func(c gig.Context) error {
+		return c.NoContent(gig.StatusRedirectTemporary,
+			"/account/" + c.Param("csrf") + "/")
+	})
+	passAuth := gig.PassAuth(csrf.Verify)
 
-	secure := g.Group("/account", passAuth)
+	secure := g.Group("/account/:csrf/", passAuth)
 
 	secure.Handle("", gmi.ShowAccount)
 	// groups management
-	secure.Handle("/groups", gmi.ShowGroups)
-	secure.Handle("/groups/:group", gmi.ShowMembers)
-	secure.Handle("/groups/:group/desc", gmi.SetGroupDesc)
-	secure.Handle("/groups/:group/add", gmi.AddToGroup)
-	secure.Handle("/groups/:group/leave", gmi.LeaveGroup)
-	secure.Handle("/groups/:group/delete", gmi.DeleteGroup)
-	secure.Handle("/groups/:group/kick/:user", gmi.RmFromGroup)
+	secure.Handle("groups", gmi.ShowGroups)
+	secure.Handle("groups/:group", gmi.ShowMembers)
+	secure.Handle("groups/:group/desc", gmi.SetGroupDesc)
+	secure.Handle("groups/:group/add", gmi.AddToGroup)
+	secure.Handle("groups/:group/leave", gmi.LeaveGroup)
+	secure.Handle("groups/:group/delete", gmi.DeleteGroup)
+	secure.Handle("groups/:group/kick/:user", gmi.RmFromGroup)
 
 	// repository settings
-	secure.Handle("/repo/:repo/*", gmi.RepoFile)
-	secure.Handle("/repo/:repo/togglepublic", gmi.TogglePublic)
-	secure.Handle("/repo/:repo/chname", gmi.ChangeRepoName)
-	secure.Handle("/repo/:repo/chdesc", gmi.ChangeRepoDesc)
-	secure.Handle("/repo/:repo/delrepo", gmi.DeleteRepo)
+	secure.Handle("repo/:repo/*", gmi.RepoFile)
+	secure.Handle("repo/:repo/togglepublic", gmi.TogglePublic)
+	secure.Handle("repo/:repo/chname", gmi.ChangeRepoName)
+	secure.Handle("repo/:repo/chdesc", gmi.ChangeRepoDesc)
+	secure.Handle("repo/:repo/delrepo", gmi.DeleteRepo)
 
 	// access management
-	secure.Handle("/repo/:repo/access", gmi.ShowAccess)
-	secure.Handle("/repo/:repo/access/add", gmi.AddUserAccess)
-	secure.Handle("/repo/:repo/access/addg", gmi.AddGroupAccess)
-	secure.Handle("/repo/:repo/access/:user/first",
+	secure.Handle("repo/:repo/access", gmi.ShowAccess)
+	secure.Handle("repo/:repo/access/add", gmi.AddUserAccess)
+	secure.Handle("repo/:repo/access/addg", gmi.AddGroupAccess)
+	secure.Handle("repo/:repo/access/:user/first",
 		      gmi.UserAccessFirstOption)
-	secure.Handle("/repo/:repo/access/:user/second",
+	secure.Handle("repo/:repo/access/:user/second",
 		      gmi.UserAccessSecondOption)
-	secure.Handle("/repo/:repo/access/:group/g/first",
+	secure.Handle("repo/:repo/access/:group/g/first",
 		      gmi.GroupAccessFirstOption)
-	secure.Handle("/repo/:repo/access/:group/g/second",
+	secure.Handle("repo/:repo/access/:group/g/second",
 		      gmi.GroupAccessSecondOption)
-	secure.Handle("/repo/:repo/access/:user/kick",
+	secure.Handle("repo/:repo/access/:user/kick",
 		      gmi.RemoveUserAccess)
-	secure.Handle("/repo/:repo/access/:group/g/kick",
+	secure.Handle("repo/:repo/access/:group/g/kick",
 		      gmi.RemoveGroupAccess)
 
 	// repository view
-	secure.Handle("/repo/:repo", gmi.RepoLog)
-	secure.Handle("/repo/:repo/license", gmi.RepoLicense)
-	secure.Handle("/repo/:repo/readme", gmi.RepoReadme)
-	secure.Handle("/repo/:repo/refs", gmi.RepoRefs)
-	secure.Handle("/repo/:repo/files", gmi.RepoFiles)
-	secure.Handle("/repo/:repo/files/:blob", gmi.RepoFileContent)
+	secure.Handle("repo/:repo", gmi.RepoLog)
+	secure.Handle("repo/:repo/license", gmi.RepoLicense)
+	secure.Handle("repo/:repo/readme", gmi.RepoReadme)
+	secure.Handle("repo/:repo/refs", gmi.RepoRefs)
+	secure.Handle("repo/:repo/files", gmi.RepoFiles)
+	secure.Handle("repo/:repo/files/:blob", gmi.RepoFileContent)
 
 	// user page
-	secure.Handle("/chdesc", gmi.ChangeDesc)
-	secure.Handle("/addrepo", gmi.AddRepo)
-	secure.Handle("/addgroup", gmi.AddGroup)
+	secure.Handle("chdesc", gmi.ChangeDesc)
+	secure.Handle("addrepo", gmi.AddRepo)
+	secure.Handle("addgroup", gmi.AddGroup)
 	// otp
-	secure.Handle("/otp", gmi.ShowOTP)
-	secure.Handle("/otp/qr", gmi.CreateTOTP)
-	secure.Handle("/otp/confirm", gmi.ConfirmTOTP)
-	secure.Handle("/otp/rm", gmi.RemoveTOTP)
+	secure.Handle("otp", gmi.ShowOTP)
+	secure.Handle("otp/qr", gmi.CreateTOTP)
+	secure.Handle("otp/confirm", gmi.ConfirmTOTP)
+	secure.Handle("otp/rm", gmi.RemoveTOTP)
 	// token
-	secure.Handle("/token", gmi.ListTokens)
-	secure.Handle("/token/new", gmi.CreateWriteToken)
-	secure.Handle("/token/new_ro", gmi.CreateReadToken)
-	secure.Handle("/token/secure", gmi.ToggleTokenAuth)
-	secure.Handle("/token/renew/:token", gmi.RenewToken)
-	secure.Handle("/token/delete/:token", gmi.DeleteToken)
+	secure.Handle("token", gmi.ListTokens)
+	secure.Handle("token/new", gmi.CreateWriteToken)
+	secure.Handle("token/new_ro", gmi.CreateReadToken)
+	secure.Handle("token/secure", gmi.ToggleTokenAuth)
+	secure.Handle("token/renew/:token", gmi.RenewToken)
+	secure.Handle("token/delete/:token", gmi.DeleteToken)
 
 	if !config.Cfg.Ldap.Enabled {
-		secure.Handle("/chpasswd", gmi.ChangePassword)
+		secure.Handle("chpasswd", gmi.ChangePassword)
 	}
 
-	secure.Handle("/disconnect", gmi.Disconnect)
-	secure.Handle("/disconnectall", gmi.DisconnectAll)
+	secure.Handle("disconnect", gmi.Disconnect)
+	secure.Handle("disconnectall", gmi.DisconnectAll)
 
 	if config.Cfg.Git.Key != "" {
 		api := g.Group("/api")

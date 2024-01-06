@@ -5,9 +5,15 @@ import (
 	"strconv"
 
 	"gemigit/db"
+	"gemigit/csrf"
 
 	"github.com/pitr/gig"
 )
+
+func tokenRedirect(c gig.Context) error {
+	return c.NoContent(gig.StatusRedirectTemporary,
+		"/account/" + csrf.Token(c.CertHash()) + "/token")
+}
 
 func CreateToken(c gig.Context, readOnly bool) error {
 
@@ -73,7 +79,7 @@ func ToggleTokenAuth(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
 	}
 
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/token")
+	return tokenRedirect(c)
 }
 
 func RenewToken(c gig.Context) error {
@@ -88,7 +94,7 @@ func RenewToken(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid token")
 	}
 
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/token")
+	return tokenRedirect(c)
 }
 
 func DeleteToken(c gig.Context) error {
@@ -103,5 +109,5 @@ func DeleteToken(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid token")
 	}
 
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/token")
+	return tokenRedirect(c)
 }
