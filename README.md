@@ -67,7 +67,7 @@ You can try a public instance of Gemigit at this address gemini://gemini.rmf-dev
 
 ## Contact
 
-For inquiries about this software or the instance running at gemini://gemini.rmf-dev.com, you can contact the main maintainer of this project at : rawmonk@firemail.cc
+For inquiries about this software or the instance running at gemini://gemini.rmf-dev.com, you can contact the main maintainer of this project at : inquiry@rmf-dev.com
 
 [0]: https://geminiprotocol.net/
 [1]: https://portal.mozz.us/gemini/gemini.rmf-dev.com/
