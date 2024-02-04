@@ -271,7 +271,12 @@ func main() {
 	if config.Cfg.Git.Public {
 		public = g.Group("/repo")
 	} else {
-		public = g.Group("/repo", passAuth)
+		public = g.Group("/repo", gig.PassAuth(
+			func(sig string, c gig.Context) (string, error) {
+				_, exist := db.GetUser(sig)
+				if !exist { return "/", nil }
+				return "", nil
+			}))
 	}
 
 	public.Handle("", gmi.PublicList)
