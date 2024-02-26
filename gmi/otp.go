@@ -105,7 +105,7 @@ func LoginOTP(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 
-	return otpRedirect(c)
+	return c.NoContent(gig.StatusRedirectTemporary, "/account")
 }
 
 func RemoveTOTP(c gig.Context) error {
