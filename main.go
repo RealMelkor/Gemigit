@@ -16,9 +16,13 @@ import (
 	"gemigit/repo"
 	"gemigit/gmi"
 	"gemigit/csrf"
+	_ "embed"
 
 	"github.com/pitr/gig"
 )
+
+//go:embed gmi/templates/robots.txt
+var robots string
 
 func main() {
 
@@ -141,7 +145,7 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	if err := gmi.LoadTemplate(config.Cfg.Gemini.Templates); err != nil {
+	if err := gmi.LoadTemplate(); err != nil {
 		log.Fatalln(err.Error())
 	}
 
@@ -174,7 +178,9 @@ func main() {
 					 "Latency=${latency}\n"
 	g := gig.Default()
 	g.Use(gig.Recover())
-	g.File("/robots.txt", config.Cfg.Gemini.Templates + "/robots.txt")
+	g.Handle("/robots.txt", func(c gig.Context) error {
+		return c.Gemini(robots)
+	})
 	if config.Cfg.Gemini.StaticDirectory != "" {
 		g.Static("/static", config.Cfg.Gemini.StaticDirectory)
 	}

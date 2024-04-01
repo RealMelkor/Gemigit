@@ -13,12 +13,16 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"embed"
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/pitr/gig"
 )
+
+//go:embed templates/*
+var templatesFS embed.FS
 
 func execT(c gig.Context, template string, data interface{}) error {
 	t := templates.Lookup(template)
@@ -52,39 +56,34 @@ const (
 
 var templates *template.Template
 
-func LoadTemplate(dir string) error {
+func LoadTemplate() error {
 	var err error
-
-	dirlen := len(dir)
-	if dirlen > 1 && dir[dirlen - 1] == '/' {
-		dir = dir[:dirlen - 1]
-	}
-
 	templates = template.New("gmi")
-	template.Must(templates.Funcs(template.FuncMap {
+	t := templates.Funcs(template.FuncMap {
 		"AccessFirst": accessFirstOption,
 		"AccessSecond": accessSecondOption,
 		"AccessPrivilege": privilegeToString,
-	}).ParseFiles(
-		dir + "/index.gmi",
-		dir + "/account.gmi",
-		dir + "/repo.gmi",
-		dir + "/repo_log.gmi",
-		dir + "/repo_files.gmi",
-		dir + "/repo_refs.gmi",
-		dir + "/repo_license.gmi",
-		dir + "/repo_readme.gmi",
-		dir + "/repo_access.gmi",
-		dir + "/register_success.gmi",
-		dir + "/public_repo.gmi",
-		dir + "/group_list.gmi",
-		dir + "/group.gmi",
-		dir + "/public_list.gmi",
-		dir + "/public_user.gmi",
-		dir + "/otp.gmi",
-		dir + "/token.gmi",
-		dir + "/token_new.gmi",
-	))
+	})
+	_, err = t.ParseFS(templatesFS,
+		"templates/index.gmi",
+		"templates/account.gmi",
+		"templates/repo.gmi",
+		"templates/repo_log.gmi",
+		"templates/repo_files.gmi",
+		"templates/repo_refs.gmi",
+		"templates/repo_license.gmi",
+		"templates/repo_readme.gmi",
+		"templates/repo_access.gmi",
+		"templates/register_success.gmi",
+		"templates/public_repo.gmi",
+		"templates/group_list.gmi",
+		"templates/group.gmi",
+		"templates/public_list.gmi",
+		"templates/public_user.gmi",
+		"templates/otp.gmi",
+		"templates/token.gmi",
+		"templates/token_new.gmi",
+	)
 	if err != nil {
 		return err
 	}

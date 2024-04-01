@@ -56,7 +56,6 @@ mkdir /etc/gemigit
 cp config.yaml /etc/gemigit/
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes -subj '/CN=localhost'
 cp *.pem /var/lib/gemigit/
-cp -r ./templates /var/lib/gemigit/
 chown -R gemigit:gemigit /var/lib/gemigit
 systemctl enable --now gemigit
 ```
