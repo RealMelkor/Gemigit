@@ -62,11 +62,11 @@ systemctl enable --now gemigit
 
 ## Demo
 
-You can try a public instance of Gemigit at this address gemini://gemini.rmf-dev.com using a Gemini client or with a [gemini web proxy][1].
+You can try a public instance of Gemigit at this address gemini://gmi.rmf-dev.com using a Gemini client or with a [gemini web proxy][1].
 
 ## Contact
 
-For inquiries about this software or the instance running at gemini://gemini.rmf-dev.com, you can contact the main maintainer of this project at : inquiry@rmf-dev.com
+For inquiries about this software or the instance running at gemini://gmi.rmf-dev.com, you can contact the main maintainer of this project at : inquiry@rmf-dev.com
 
 [0]: https://geminiprotocol.net/
-[1]: https://portal.mozz.us/gemini/gemini.rmf-dev.com/
+[1]: https://portal.mozz.us/gemini/gmi.rmf-dev.com/

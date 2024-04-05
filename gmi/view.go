@@ -64,26 +64,7 @@ func LoadTemplate() error {
 		"AccessSecond": accessSecondOption,
 		"AccessPrivilege": privilegeToString,
 	})
-	_, err = t.ParseFS(templatesFS,
-		"templates/index.gmi",
-		"templates/account.gmi",
-		"templates/repo.gmi",
-		"templates/repo_log.gmi",
-		"templates/repo_files.gmi",
-		"templates/repo_refs.gmi",
-		"templates/repo_license.gmi",
-		"templates/repo_readme.gmi",
-		"templates/repo_access.gmi",
-		"templates/register_success.gmi",
-		"templates/public_repo.gmi",
-		"templates/group_list.gmi",
-		"templates/group.gmi",
-		"templates/public_list.gmi",
-		"templates/public_user.gmi",
-		"templates/otp.gmi",
-		"templates/token.gmi",
-		"templates/token_new.gmi",
-	)
+	_, err = t.ParseFS(templatesFS, "templates/*.gmi")
 	if err != nil {
 		return err
 	}
