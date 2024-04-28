@@ -457,6 +457,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		HasReadme bool
 		HasLicense bool
 		Content string
+		Token string
 	}{
 		HasHTTP: config.Cfg.Git.Http.Enabled,
 		HttpProtocol: protocol,
@@ -473,6 +474,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 			   hasFile(name, author, "README"),
 		HasLicense: hasFile(name, author, "LICENSE"),
 		Content: content,
+		Token: c.Param("csrf"),
 	}
 	if owner {
 		return execT(c, "repo.gmi", data)

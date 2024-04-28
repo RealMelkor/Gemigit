@@ -79,7 +79,7 @@ func RepoFileContent(c gig.Context) error {
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	header := "=>/account/repo/" + c.Param("repo") + "/files Go Back\n\n"
+	header := "=>/account/" + csrf.Token(c.CertHash()) + "/repo/" + c.Param("repo") + "/files Go Back\n\n"
 	return c.Gemini(header + showFileContent(content))
 }
 
@@ -199,3 +199,4 @@ func RepoReadme(c gig.Context) error {
 func RepoLog(c gig.Context) error {
 	return showRepo(c, pageLog, true)
 }
+
