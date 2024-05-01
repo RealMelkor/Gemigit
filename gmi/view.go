@@ -8,6 +8,7 @@ import (
 	"gemigit/config"
 	"gemigit/db"
 	"gemigit/repo"
+	"gemigit/csrf"
 	io "gemigit/util"
 	"log"
 	"strconv"
@@ -53,7 +54,6 @@ const (
 var templates *template.Template
 
 func LoadTemplate(dir string) error {
-	var err error
 
 	dirlen := len(dir)
 	if dirlen > 1 && dir[dirlen - 1] == '/' {
@@ -61,7 +61,7 @@ func LoadTemplate(dir string) error {
 	}
 
 	templates = template.New("gmi")
-	template.Must(templates.Funcs(template.FuncMap {
+	_, err := templates.Funcs(template.FuncMap {
 		"AccessFirst": accessFirstOption,
 		"AccessSecond": accessSecondOption,
 		"AccessPrivilege": privilegeToString,
@@ -84,10 +84,8 @@ func LoadTemplate(dir string) error {
 		dir + "/otp.gmi",
 		dir + "/token.gmi",
 		dir + "/token_new.gmi",
-	))
-	if err != nil {
-		return err
-	}
+	)
+	if err != nil { return err }
 	log.Println("Templates loaded")
 	return nil
 }
@@ -154,12 +152,14 @@ func ShowAccount(c gig.Context) (error) {
 		Repositories []string
 		RepositoriesAccess []db.Repo
 		Sessions int
+		CSRF string
 	}{
 		Username: user.Name,
 		Description: user.Description,
 		Repositories: repoNames,
 		RepositoriesAccess: accessRepos,
 		Sessions: sessions,
+		CSRF: csrf.Token(c.CertHash()),
 	}
 	return execT(c, "account.gmi", data)
 }
@@ -228,6 +228,7 @@ func ShowMembers(c gig.Context) (error) {
 		Owner string
 		Group string
 		Description string
+		CSRF string
 	}{
 		Members: members,
 		MembersCount: len(members),
@@ -235,6 +236,7 @@ func ShowMembers(c gig.Context) (error) {
 		Owner: owner,
 		Group: group,
 		Description: desc,
+		CSRF: csrf.Token(c.CertHash()),
 	}
 	return execT(c, "group.gmi", data)
 }
@@ -453,6 +455,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 		HasReadme bool
 		HasLicense bool
 		Content string
+		CSRF string
 	}{
 		Protocol: protocol,
 		Domain: config.Cfg.Git.Domain,
@@ -464,6 +467,7 @@ func showRepo(c gig.Context, page int, owner bool) (error) {
 			   hasFile(name, author, "README"),
 		HasLicense: hasFile(name, author, "LICENSE"),
 		Content: content,
+		CSRF: csrf.Token(c.CertHash()),
 	}
 	if owner {
 		return execT(c, "repo.gmi", data)
@@ -525,11 +529,28 @@ func ShowAccess(c gig.Context) error {
 		Collaborators []db.Access
 		Groups []db.Access
 		Owner bool
+		CSRF string
 	}{
 		Repo: repo.Name,
 		Collaborators: access,
 		Groups: groups,
 		Owner: true,
+		CSRF: csrf.Token(c.CertHash()),
 	}
 	return execT(c, "repo_access.gmi", data)
+}
+
+func ShowOTP(c gig.Context) error {
+	user, exist := db.GetUser(c.CertHash())
+	if !exist {
+		return c.NoContent(gig.StatusBadRequest, "Invalid username")
+	}
+	data := struct {
+		Secret bool
+		CSRF string
+	}{
+		Secret: user.Secret != "",
+		CSRF: csrf.Token(c.CertHash()),
+	}
+	return execT(c, "otp.gmi", data)
 }

@@ -2,8 +2,8 @@
 
 # OTP
 {{if .Secret}}
-=>/account/otp/rm Remove 2FA
+=>/account/otp/{{.CSRF}}/rm Remove 2FA
 {{else}}
-=>/account/otp/qr QR code
-=>/account/otp/confirm Confirm
+=>/account/otp/{{.CSRF}}/qr QR code
+=>/account/otp/{{.CSRF}}/confirm Confirm
 {{end}}

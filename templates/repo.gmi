@@ -7,10 +7,10 @@
 > git clone {{ .Protocol }}://{{ .Domain }}/{{ .User }}/{{ .Repo }}
 
 =>/account/repo/{{.Repo}}/access Collaborators
-=>/account/repo/{{.Repo}}/chname Change repository name
-=>/account/repo/{{.Repo}}/chdesc Change repository description
-=>/account/repo/{{.Repo}}/togglepublic Make the repository {{if .Public}}private{{else}}public {{end }}
-=>/account/repo/{{.Repo}}/delrepo Delete repository
+=>/account/repo/{{.Repo}}/{{.CSRF}}/chname Change repository name
+=>/account/repo/{{.Repo}}/{{.CSRF}}/chdesc Change repository description
+=>/account/repo/{{.Repo}}/{{.CSRF}}/togglepublic Make the repository {{if .Public}}private{{else}}public {{end }}
+=>/account/repo/{{.Repo}}/{{.CSRF}}/delrepo Delete repository
 
 =>/account/repo/{{.Repo}} Log
 =>/account/repo/{{.Repo}}/files Files

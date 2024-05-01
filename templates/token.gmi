@@ -4,15 +4,15 @@
 
 # Settings
 
-=>/account/token/secure {{if .Secure}}Enable{{else}}Disable{{end}} password authentication for git operations {{if .Secure}}[Not recommended]{{else}}[Recommended]{{end}}
+=>/account/token/{{.CSRF}}/secure {{if .Secure}}Enable{{else}}Disable{{end}} password authentication for git operations {{if .Secure}}[Not recommended]{{else}}[Recommended]{{end}}
 
 # Tokens
 
-=>/account/token/new Create new token
+=>/account/token/{{.CSRF}}/new Create new token
 
 {{ range .Tokens -}}
 * {{ .Hint }}... expires on {{ .ExpirationFormat }}
-=>/account/token/delete/{{.ID}} Delete
-=>/account/token/renew/{{.ID}} Renew
+=>/account/token/delete/{{.CSRF}}/{{.ID}} Delete
+=>/account/token/renew/{{.CSRF}}/{{.ID}} Renew
 
 {{ end -}}

@@ -17,6 +17,7 @@ require (
 	github.com/pquerna/otp v1.4.0
 	github.com/stretchr/objx v0.1.1 // indirect
 	golang.org/x/crypto v0.8.0
+	golang.org/x/term v0.7.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/sqlite v1.22.0
 )

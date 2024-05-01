@@ -5,15 +5,15 @@
 > {{ .Description }}
 {{end -}}
 {{if .IsOwner -}}
-=>/account/groups/{{.Group}}/add Add user
-=>/account/groups/{{.Group}}/desc Set description
-=>/account/groups/{{.Group}}/delete Delete group
+=>/account/groups/{{.Group}}/{{.CSRF}}/add Add user
+=>/account/groups/{{.Group}}/{{.CSRF}}/desc Set description
+=>/account/groups/{{.Group}}/{{.CSRF}}/delete Delete group
 
 {{else}}
 ## Group administrator
 =>/repo/{{.Owner}} {{.Owner}}
 
-=>/account/groups/{{.Group}}/leave Leave group
+=>/account/groups/{{.Group}}/{{.CSRF}}/leave Leave group
 
 {{end -}}
 
@@ -22,7 +22,7 @@
 {{ range .Members -}}
 * {{ .Name }}
 {{if $.IsOwner -}}
-=>/account/groups/{{$.Group}}/kick/{{.Name}} Remove {{ .Name }}
+=>/account/groups/{{$.Group}}/kick/{{.CSRF}}/{{.Name}} Remove {{ .Name }}
 
 {{end -}}
 {{ end -}}
