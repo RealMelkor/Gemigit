@@ -5,15 +5,9 @@ import (
 	"strconv"
 
 	"gemigit/db"
-	"gemigit/csrf"
 
 	"github.com/pitr/gig"
 )
-
-func tokenRedirect(c gig.Context) error {
-	return c.NoContent(gig.StatusRedirectTemporary,
-		"/account/" + csrf.Token(c.CertHash()) + "/token")
-}
 
 func CreateToken(c gig.Context, readOnly bool) error {
 
@@ -43,29 +37,6 @@ func CreateReadToken(c gig.Context) error {
 	return CreateToken(c, true)
 }
 
-func ListTokens(c gig.Context) error {
-
-	user, exist := db.GetUser(c.CertHash())
-	if !exist {
-		return c.NoContent(gig.StatusBadRequest, "Invalid username")
-	}
-
-	tokens, err := user.GetTokens()
-	if err != nil {
-		log.Println(err)
-		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
-	}
-
-	data := struct {
-		Tokens []db.Token
-		Secure bool
-	}{
-		Tokens: tokens,
-		Secure: user.SecureGit,
-	}
-	return execT(c, "token.gmi", data)
-}
-
 func ToggleTokenAuth(c gig.Context) error {
 
 	user, exist := db.GetUser(c.CertHash())
@@ -79,7 +50,7 @@ func ToggleTokenAuth(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Unexpected error")
 	}
 
-	return tokenRedirect(c)
+	return redirect(c, "token")
 }
 
 func RenewToken(c gig.Context) error {
@@ -94,7 +65,7 @@ func RenewToken(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid token")
 	}
 
-	return tokenRedirect(c)
+	return redirect(c, "token")
 }
 
 func DeleteToken(c gig.Context) error {
@@ -109,5 +80,5 @@ func DeleteToken(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid token")
 	}
 
-	return tokenRedirect(c)
+	return redirect(c, "token")
 }

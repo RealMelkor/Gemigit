@@ -1,4 +1,4 @@
-=>/account/{{.Token}} Go back
+=>/account/ Go back
 
 # {{ .Repo }}
 {{if .Description -}}
@@ -13,19 +13,19 @@
 > git clone ssh://{{.LoggedAs}}{{ .SshDomain }}/{{ .User }}/{{ .Repo }}
 {{- end }}
 
-=>/account/{{.Token}}/repo/{{.Repo}}/access Collaborators
-=>/account/{{.Token}}/repo/{{.Repo}}/chname Change repository name
-=>/account/{{.Token}}/repo/{{.Repo}}/chdesc Change repository description
-=>/account/{{.Token}}/repo/{{.Repo}}/togglepublic Make the repository {{if .Public}}private{{else}}public {{end }}
-=>/account/{{.Token}}/repo/{{.Repo}}/delrepo Delete repository
+=>/account/repo/{{.Repo}}/access Collaborators
+=>/account/repo/{{.Repo}}/{{.CSRF}}/chname Change repository name
+=>/account/repo/{{.Repo}}/{{.CSRF}}/chdesc Change repository description
+=>/account/repo/{{.Repo}}/{{.CSRF}}/togglepublic Make the repository {{if .Public}}private{{else}}public {{end }}
+=>/account/repo/{{.Repo}}/{{.CSRF}}/delrepo Delete repository
 
-=>/account/{{.Token}}/repo/{{.Repo}} Log
-=>/account/{{.Token}}/repo/{{.Repo}}/files Files
-=>/account/{{.Token}}/repo/{{.Repo}}/refs Refs
+=>/account/repo/{{.Repo}} Log
+=>/account/repo/{{.Repo}}/files Files
+=>/account/repo/{{.Repo}}/refs Refs
 {{ if .HasLicense -}}
-=>/account/{{.Token}}/repo/{{.Repo}}/license License
+=>/account/repo/{{.Repo}}/license License
 {{ end -}}
 {{ if .HasReadme -}}
-=>/account/{{.Token}}/repo/{{.Repo}}/readme Readme
+=>/account/repo/{{.Repo}}/readme Readme
 {{ end }}
 {{if .Content -}} {{ .Content }} {{ else }} Empty repository {{ end }}

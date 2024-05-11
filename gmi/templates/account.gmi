@@ -6,16 +6,16 @@
 
 {{end -}}
 
-=>addrepo Create a new repository
-=>addgroup Create a new user group
-=>chdesc Change your account description
+=>{{.CSRF}}/addrepo Create a new repository
+=>{{.CSRF}}/addgroup Create a new user group
+=>{{.CSRF}}/chdesc Change your account description
 =>groups View the groups you are in
 =>token View authentication tokens settings
 =>otp View 2FA settings
-=>chpasswd Change your password
-=>disconnect Disconnect
+=>{{.CSRF}}/chpasswd Change your password
+=>{{.CSRF}}/disconnect Disconnect
 {{if .Sessions -}}
-=>disconnectall Disconnect other sessions [{{.Sessions}}]
+=>{{.CSRF}}/disconnectall Disconnect other sessions [{{.Sessions}}]
 {{- end}}
 
 ## Your repositories

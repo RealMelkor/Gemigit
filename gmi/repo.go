@@ -6,16 +6,14 @@ import (
 
         "gemigit/db"
         "gemigit/repo"
-        "gemigit/csrf"
 	io "gemigit/util"
 
         "github.com/pitr/gig"
 	"github.com/gabriel-vasile/mimetype"
 )
 
-func accountRedirect(c gig.Context, after string) error {
-	return c.NoContent(gig.StatusRedirectTemporary,
-		"/account/" + csrf.Token(c.CertHash()) + "/" + after)
+func redirect(c gig.Context, after string) error {
+	return c.NoContent(gig.StatusRedirectTemporary, "/account/" + after)
 }
 
 func showFileContent(content string) string {
@@ -75,11 +73,11 @@ func RepoFileContent(c gig.Context) error {
 		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
 	content, err := repo.GetPrivateFile(c.Param("repo"), user.Name,
-					    c.Param("blob"), c.CertHash())
+				c.Param("blob"), c.CertHash())
 	if err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	header := "=>/account/" + csrf.Token(c.CertHash()) + "/repo/" + c.Param("repo") + "/files Go Back\n\n"
+	header := "=>/account/repo/" + c.Param("repo") + "/files Go Back\n\n"
 	return c.Gemini(header + showFileContent(content))
 }
 
@@ -104,7 +102,7 @@ func TogglePublic(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accountRedirect(c, "repo/" + c.Param("repo"))
+	return redirect(c, "repo/" + c.Param("repo"))
 }
 
 func ChangeRepoName(c gig.Context) error {
@@ -130,7 +128,7 @@ func ChangeRepoName(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accountRedirect(c, "repo/" + newname)
+	return redirect(c, "repo/" + newname)
 }
 
 func ChangeRepoDesc(c gig.Context) error {
@@ -151,7 +149,7 @@ func ChangeRepoDesc(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accountRedirect(c, "repo/" + c.Param("repo"))
+	return redirect(c, "repo/" + c.Param("repo"))
 }
 
 func DeleteRepo(c gig.Context) error {
@@ -165,7 +163,7 @@ func DeleteRepo(c gig.Context) error {
 				"To confirm type the repository name")
 	}
 	if name != c.Param("repo") {
-		return accountRedirect(c, "repo/" + c.Param("repo"))
+		return redirect(c, "repo/" + c.Param("repo"))
 	}
 	user, b := db.GetUser(c.CertHash())
 	if !b {
@@ -181,7 +179,7 @@ func DeleteRepo(c gig.Context) error {
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
-	return accountRedirect(c, "")
+	return redirect(c, "")
 }
 
 func RepoRefs(c gig.Context) error {
@@ -199,4 +197,3 @@ func RepoReadme(c gig.Context) error {
 func RepoLog(c gig.Context) error {
 	return showRepo(c, pageLog, true)
 }
-

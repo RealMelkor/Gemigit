@@ -1,9 +1,10 @@
 package csrf
 
 import (
+	"errors"
+	"crypto/rand"
 	"gemigit/db"
 
-	"crypto/rand"
 	"github.com/pitr/gig"
 )
 
@@ -28,14 +29,29 @@ func New(c gig.Context) error {
 	if !exist { return c.NoContent(gig.StatusRedirectTemporary, "/") }
 	token := randomString(16)
 	tokens[sig] = token
-	return c.NoContent(gig.StatusRedirectTemporary,
-			"/account/" + token + "/")
+	return nil
 }
 
-func Verify(sig string, c gig.Context) (string, error) {
+func Verify(c gig.Context) error {
+	sig := c.CertHash()
 	token, exist := tokens[sig]
 	if exist { _, exist = db.GetUser(sig) }
-	if !exist || token != c.Param("csrf") { return "/", nil }
+	if !exist || token != c.Param("csrf") {
+		return errors.New("invalid csrf token")
+	}
+	return nil
+}
+
+func Handle(sig string, c gig.Context) (string, error) {
+	_, b := db.GetUser(sig)
+	if !b {
+		return "/login", nil
+	}
+	if c.Param("csrf") == "" {
+		New(c)
+	} else if err := Verify(c); err != nil {
+		return "", err
+	}
 	return "", nil
 }
 

@@ -4,16 +4,16 @@
 
 # Settings
 
-=>token/secure {{if .Secure}}Enable{{else}}Disable{{end}} password authentication for git operations {{if .Secure}}[Not recommended]{{else}}[Recommended]{{end}}
+=>token/{{.CSRF}}/secure {{if .Secure}}Enable{{else}}Disable{{end}} password authentication for git operations {{if .Secure}}[Not recommended]{{else}}[Recommended]{{end}}
 
 # Tokens
 
-=>token/new Create new token
-=>token/new_ro Create new read-only token
+=>token/{{.CSRF}}/new Create new token
+=>token/{{.CSRF}}/new_ro Create new read-only token
 
 {{ range .Tokens -}}
 * {{ .Hint }}... expires on {{ .ExpirationFormat }} {{if .ReadOnly}}[Read Only]{{end}}
-=>token/delete/{{.ID}} Delete
-=>token/renew/{{.ID}} Renew
+=>token/{{$.CSRF}}/delete/{{.ID}} Delete
+=>token/{{$.CSRF}}/renew/{{.ID}} Renew
 
 {{ end -}}

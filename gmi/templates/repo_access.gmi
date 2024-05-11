@@ -2,17 +2,17 @@
 
 # {{ .Repo }}
 
-=>access/add Add user
-=>access/addg Add group
+=>access/{{.CSRF}}/add Add user
+=>access/{{.CSRF}}/addg Add group
 
 ## Collaborators
 
 {{ range .Collaborators -}}
 * {{ .Name }} - Privilege : {{.Privilege | AccessPrivilege}}
 {{if $.Owner -}}
-=>access/{{.Name}}/first {{.Privilege | AccessFirst}}
-=>access/{{.Name}}/second {{.Privilege | AccessSecond}}
-=>access/{{.Name}}/kick Remove
+=>access/{{.Name}}/{{$.CSRF}}/first {{.Privilege | AccessFirst}}
+=>access/{{.Name}}/{{$.CSRF}}/second {{.Privilege | AccessSecond}}
+=>access/{{.Name}}/{{$.CSRF}}/kick Remove
 
 {{end -}}
 {{end -}}
@@ -22,9 +22,9 @@
 {{ range .Groups -}}
 * {{ .Name }} - Privilege : {{.Privilege | AccessPrivilege}}
 {{if $.Owner -}}
-=>access/{{.Name}}/g/first {{.Privilege | AccessFirst}}
-=>access/{{.Name}}/g/second {{.Privilege | AccessSecond}}
-=>access/{{.Name}}/g/kick Remove
+=>access/{{.Name}}/g/{{$.CSRF}}/first {{.Privilege | AccessFirst}}
+=>access/{{.Name}}/g/{{$.CSRF}}/second {{.Privilege | AccessSecond}}
+=>access/{{.Name}}/g/{{$.CSRF}}/kick Remove
 
 {{end -}}
 {{end -}}

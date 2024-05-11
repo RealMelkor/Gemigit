@@ -1,7 +1,7 @@
 # {{ .Title }}
 
 {{ if .Connected -}}
-=>/account Account page
+=>/account/ Account page
 {{ else -}}
 =>/login Login
 {{ if .Registration -}}

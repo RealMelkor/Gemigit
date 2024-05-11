@@ -2,15 +2,13 @@ package gmi
 
 import (
 	"gemigit/db"
-	"gemigit/csrf"
 
 	"github.com/pitr/gig"
 )
 
 func accessRedirect(c gig.Context) error {
 	return c.NoContent(gig.StatusRedirectTemporary,
-		"/account/" + csrf.Token(c.CertHash()) + "/repo/" +
-		c.Param("repo") + "/access")
+		"/account/repo/" + c.Param("repo") + "/access")
 }
 
 func privilegeUpdate(privilege int, first bool) int {

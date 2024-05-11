@@ -1,19 +1,19 @@
-=>. Go back
+=>/account/groups Go back
 
 # {{ .Group }}
 {{if .Description -}}
 > {{ .Description }}
 {{end -}}
 {{if .IsOwner -}}
-=>{{.Group}}/add Add user
-=>{{.Group}}/desc Set description
-=>{{.Group}}/delete Delete group
+=>{{.Group}}/{{.CSRF}}/add Add user
+=>{{.Group}}/{{.CSRF}}/desc Set description
+=>{{.Group}}/{{.CSRF}}/delete Delete group
 
 {{else}}
 ## Group administrator
 =>/repo/{{.Owner}} {{.Owner}}
 
-=>leave Leave group
+=>{{.CSRF}}/leave Leave group
 
 {{end -}}
 
@@ -22,7 +22,7 @@
 {{ range .Members -}}
 * {{ .Name }}
 {{if $.IsOwner -}}
-=>{{$.Group}}/kick/{{.Name}} Remove {{ .Name }}
+=>{{$.Group}}/{{$.CSRF}}/kick/{{.Name}} Remove {{ .Name }}
 
 {{end -}}
 {{ end -}}

@@ -137,16 +137,3 @@ func RemoveTOTP(c gig.Context) error {
 
 	return otpRedirect(c)
 }
-
-func ShowOTP(c gig.Context) error {
-	user, exist := db.GetUser(c.CertHash())
-	if !exist {
-		return c.NoContent(gig.StatusBadRequest, "Invalid username")
-	}
-	data := struct {
-		Secret bool
-	}{
-		Secret: user.Secret != "",
-	}
-	return execT(c, "otp.gmi", data)
-}

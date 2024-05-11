@@ -2,19 +2,17 @@ package gmi
 
 import (
 	"gemigit/db"
-	"gemigit/csrf"
 
 	"github.com/pitr/gig"
 )
 
 func groupRedirect(c gig.Context) error {
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/" +
-		csrf.Token(c.CertHash()) + "/groups/" + c.Param("group"))
+	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups/" +
+		c.Param("group"))
 }
 
 func groupsListRedirect(c gig.Context) error {
-	return c.NoContent(gig.StatusRedirectTemporary, "/account/" +
-			csrf.Token(c.CertHash()) + "/groups")
+	return c.NoContent(gig.StatusRedirectTemporary, "/account/groups")
 }
 
 func isGroupOwner(c gig.Context) (int, error) {
