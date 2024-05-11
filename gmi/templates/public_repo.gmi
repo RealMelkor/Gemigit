@@ -1,4 +1,4 @@
-=>/{{if .Public}}repo{{else}}account{{end}} Go back
+=>/{{if .Public}}repo{{else}}account/{{end}} Go back
 
 # {{ .Repo }} by {{ .User }}
 =>/repo/{{.User}} View account
