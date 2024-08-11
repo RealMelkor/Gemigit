@@ -26,7 +26,7 @@ func (user User) CreateRepo(repo string, signature string) error {
 		return err
 	}
 
-	if err := isRepoNameValid(repo); err != nil {
+	if err := IsRepoNameValid(repo); err != nil {
 		return err
 	}
 
@@ -70,7 +70,7 @@ func (user User) ChangeRepoName(name string, newname string,
 	if err := user.VerifySignature(signature); err != nil {
 		return err
 	}
-	err := isRepoNameValid(newname)
+	err := IsRepoNameValid(newname)
 	if err != nil {
 		return err
 	}
