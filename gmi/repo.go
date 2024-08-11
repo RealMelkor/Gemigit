@@ -118,13 +118,19 @@ func ChangeRepoName(c gig.Context) error {
 	if !exist {
 		return c.NoContent(gig.StatusBadRequest, "Invalid username")
 	}
-	// should check if repo exist and if the new name is free
+	if err := db.IsRepoNameValid(newname); err != nil {
+		return c.NoContent(gig.StatusBadRequest, err.Error())
+	}
+	id, err := db.GetRepoID(newname, user.ID)
+	if id != -1 {
+		return c.NoContent(gig.StatusBadRequest,
+			"One of your repositories is already named " + newname)
+	}
 	if err := repo.ChangeRepoDir(c.Param("repo"), user.Name, newname);
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}
 	if err := user.ChangeRepoName(c.Param("repo"), newname, c.CertHash());
-
 	   err != nil {
 		return c.NoContent(gig.StatusBadRequest, err.Error())
 	}

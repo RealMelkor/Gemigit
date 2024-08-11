@@ -87,7 +87,7 @@ func isGroupNameValid(name string) (error) {
 	return nil
 }
 
-func isRepoNameValid(name string) (error) {
+func IsRepoNameValid(name string) (error) {
 	if err := isNameValid(name); err != nil {
 		return err
 	}
